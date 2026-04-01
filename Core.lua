@@ -24,6 +24,7 @@ local DEFAULTS = {
     showKeybinds = true,
     showRangeIndicator = true,
     combatOnly = false,
+    enemyTargetOnly = false,
     overlayScale = 1.0,
     overlayOpacity = 1.0,
     hidden = false,
@@ -86,13 +87,7 @@ local function TryActivate()
         return false
     end
 
-    if not TrueShot.GetOpt("hidden") then
-        if TrueShot.GetOpt("combatOnly") and not UnitAffectingCombat("player") then
-            Display:Disable()
-        else
-            Display:Enable()
-        end
-    end
+    -- Visibility handled by ReconcileVisibility after activation
     return true
 end
 
@@ -107,7 +102,32 @@ eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
 eventFrame:RegisterEvent("SPELLS_CHANGED")
+eventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+
+local function ShouldShowOverlay()
+    if TrueShot.GetOpt("hidden") then return false end
+    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then return false end
+    if TrueShot.GetOpt("enemyTargetOnly") then
+        return UnitExists("target") and UnitCanAttack("player", "target")
+    end
+    if TrueShot.GetOpt("combatOnly") then
+        return UnitAffectingCombat("player")
+    end
+    return true
+end
+
+local function ReconcileVisibility()
+    if not TrueShot.Engine or not TrueShot.Engine.activeProfile then return end
+    if not TrueShot.Display then return end
+    if ShouldShowOverlay() then
+        TrueShot.Display:Enable()
+    else
+        TrueShot.Display:Disable()
+    end
+end
+
+TrueShot.ReconcileVisibility = ReconcileVisibility
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     Engine = TrueShot.Engine
@@ -127,6 +147,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
                 print("|cffff0000[TrueShot]|r Assisted Combat not available.")
             end
         end
+        ReconcileVisibility()
 
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
         local unit, _, spellID = ...
@@ -139,16 +160,15 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PLAYER_REGEN_DISABLED" then
         Engine.combatStartTime = GetTime()
-        if Engine.activeProfile and not Display.container:IsShown() and not TrueShot.GetOpt("hidden") then
-            Display:Enable()
-        end
+        ReconcileVisibility()
 
     elseif event == "PLAYER_REGEN_ENABLED" then
         Engine.combatStartTime = nil
         Engine:OnCombatEnd()
-        if TrueShot.GetOpt("combatOnly") and not TrueShot.GetOpt("hidden") then
-            Display:Disable()
-        end
+        ReconcileVisibility()
+
+    elseif event == "PLAYER_TARGET_CHANGED" then
+        ReconcileVisibility()
 
     elseif event == "PLAYER_SPECIALIZATION_CHANGED"
         or event == "PLAYER_TALENT_UPDATE"
@@ -160,6 +180,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             local name = curr.id or "unknown"
             print("|cff00ff00[TrueShot]|r Profile switched: " .. name)
         end
+        ReconcileVisibility()
         -- Force immediate display refresh after any spell/talent change
         if Display and Display.container and Display.container:IsShown() then
             local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
@@ -173,6 +194,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             if currDelayed and currDelayed ~= prevDelayed then
                 print("|cff00ff00[TrueShot]|r Profile switched: " .. (currDelayed.id or "unknown"))
             end
+            ReconcileVisibility()
             if Display and Display.container and Display.container:IsShown() then
                 local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
                 Display:UpdateQueue(queue)
@@ -217,12 +239,9 @@ SlashCmdList["TRUESHOT"] = function(msg)
 
     elseif msg == "show" then
         TrueShot.SetOpt("hidden", false)
-        if not Engine.activeProfile or not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
-            print("|cff00ff00[TS]|r No active profile or Assisted Combat unavailable.")
-        elseif TrueShot.GetOpt("combatOnly") and not UnitAffectingCombat("player") then
-            print("|cff00ff00[TS]|r Combat-only mode active. Overlay will show when combat starts.")
-        else
-            Display:Enable()
+        ReconcileVisibility()
+        if not Display.container:IsShown() then
+            print("|cff00ff00[TS]|r Overlay will show when conditions are met (target/combat).")
         end
 
     elseif msg == "options" or msg == "config" then

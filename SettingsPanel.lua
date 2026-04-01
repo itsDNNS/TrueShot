@@ -105,11 +105,18 @@ local function CreateSettingsPanel()
         subtitle, "locked"
     )
 
+    local enemyCheck, enemyDesc = CreateCheckbox(
+        panel,
+        "Show only on enemy target",
+        "Show the overlay only when you have a hostile target selected. Implies combat-only behavior.",
+        lockDesc, "enemyTargetOnly"
+    )
+
     local combatCheck, combatDesc = CreateCheckbox(
         panel,
         "Show only in combat",
-        "Hide the overlay outside of combat. It will appear when you enter combat and hide when you leave.",
-        lockDesc, "combatOnly"
+        "Hide the overlay outside of combat. Ignored when 'Show only on enemy target' is active.",
+        enemyDesc, "combatOnly"
     )
 
     local scaleSlider, scaleDesc = CreateSlider(
@@ -180,6 +187,7 @@ local function CreateSettingsPanel()
 
     panel:SetScript("OnShow", function()
         lockCheck.sync()
+        enemyCheck.sync()
         combatCheck.sync()
         scaleSlider.sync()
         opacitySlider.sync()

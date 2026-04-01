@@ -399,11 +399,13 @@ end
 
 TrueShot.RegisterOptCallback(function(key)
     Display:ApplyOptions()
-    if key == "combatOnly" then
-        if TrueShot.GetOpt("combatOnly") and not UnitAffectingCombat("player") and not TrueShot.GetOpt("hidden") then
-            Display:Disable()
-        elseif not TrueShot.GetOpt("combatOnly") and not TrueShot.GetOpt("hidden") and TrueShot.Engine.activeProfile and C_AssistedCombat and C_AssistedCombat.IsAvailable() then
-            Display:Enable()
-        end
+    if key == "combatOnly" or key == "enemyTargetOnly" or key == "hidden" then
+        -- Defer to Core.lua's ReconcileVisibility via a zero-delay timer
+        -- (Core.lua defines ReconcileVisibility after Display loads)
+        C_Timer.After(0, function()
+            if TrueShot.ReconcileVisibility then
+                TrueShot.ReconcileVisibility()
+            end
+        end)
     end
 end)
