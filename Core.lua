@@ -109,6 +109,7 @@ local function ShouldShowOverlay()
     if TrueShot.GetOpt("hidden") then return false end
     if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then return false end
     if TrueShot.GetOpt("enemyTargetOnly") then
+        if UnitAffectingCombat("player") then return true end
         return UnitExists("target") and UnitCanAttack("player", "target")
     end
     if TrueShot.GetOpt("combatOnly") then
