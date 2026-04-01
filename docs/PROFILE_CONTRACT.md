@@ -13,11 +13,16 @@ Target shape for a modularized profile:
   id = "Hunter.BM.DarkRanger",
   class = "HUNTER",
   specID = 253,
+  markerSpell = 466930,  -- hero-path exclusive spell for auto-detection
   hero = "DarkRanger",
   state = { ... },
   rules = { ... },
 }
 ```
+
+### markerSpell (optional)
+
+When multiple profiles share the same `specID`, the engine uses `markerSpell` to pick the correct one. The engine calls `IsPlayerSpell(markerSpell)` during activation and selects the first profile whose marker is known to the player. Profiles without a `markerSpell` serve as fallback.
 
 ## Required Behavior
 

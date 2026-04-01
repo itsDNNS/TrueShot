@@ -1,12 +1,13 @@
 ## Interface: 120000
 ## Title: HunterFlow
-## Notes: Hunter rotation overlay for WoW Midnight. Initial profile: BM / Dark Ranger.
+## Notes: Hunter rotation overlay for WoW Midnight. BM profiles: Dark Ranger, Pack Leader.
 ## Author: itsDNNS
 ## Version: 0.2.0-alpha
 ## SavedVariables: HunterFlowDB
 
 Engine.lua
 Profiles/BM_DarkRanger.lua
+Profiles/BM_PackLeader.lua
 Display.lua
 SignalProbe.lua
 Core.lua

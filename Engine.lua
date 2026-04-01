@@ -215,17 +215,41 @@ end
 HunterFlow.Profiles = {}
 
 function Engine:RegisterProfile(profile)
-    HunterFlow.Profiles[profile.specID] = profile
+    local specID = profile.specID
+    if not HunterFlow.Profiles[specID] then
+        HunterFlow.Profiles[specID] = {}
+    end
+    table.insert(HunterFlow.Profiles[specID], profile)
 end
 
 function Engine:ActivateProfile(specID)
-    local profile = HunterFlow.Profiles[specID]
-    if profile then
-        self.activeProfile = profile
-        if profile.ResetState then profile:ResetState() end
-        self:RebuildBlacklist()
-        return true
+    local candidates = HunterFlow.Profiles[specID]
+    if not candidates or #candidates == 0 then
+        self.activeProfile = nil
+        return false
     end
+
+    -- Match by markerSpell (hero path detection via IsPlayerSpell)
+    for _, profile in ipairs(candidates) do
+        if profile.markerSpell and IsPlayerSpell(profile.markerSpell) then
+            self.activeProfile = profile
+            if profile.ResetState then profile:ResetState() end
+            self:RebuildBlacklist()
+            return true
+        end
+    end
+
+    -- Fallback: first profile without a marker, or first profile overall
+    for _, profile in ipairs(candidates) do
+        if not profile.markerSpell then
+            self.activeProfile = profile
+            if profile.ResetState then profile:ResetState() end
+            self:RebuildBlacklist()
+            return true
+        end
+    end
+
+    -- No marker matched and no markerless fallback: stay inactive
     self.activeProfile = nil
     return false
 end
