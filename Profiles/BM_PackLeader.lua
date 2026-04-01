@@ -92,6 +92,7 @@ end
 
 function Profile:OnCombatEnd()
     self.state.lastCastWasKC = false
+    self.state.lastBWCast = 0
 end
 
 ------------------------------------------------------------------------

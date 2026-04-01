@@ -46,6 +46,7 @@ content:SetPoint("TOPLEFT", container, "TOPLEFT", CONTAINER_PADDING_X, -CONTAINE
 content:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -CONTAINER_PADDING_X, CONTAINER_PADDING_Y)
 
 Display.container = container
+container:Hide()
 
 container:SetClipsChildren(false)
 
