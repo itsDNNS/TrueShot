@@ -195,7 +195,7 @@ function Profile:EvalCondition(cond)
         return (GetTime() - s.lastBWCast) < BW_COOLDOWN_ESTIMATE
 
     elseif cond.type == "bw_nearly_ready" then
-        if s.lastBWCast == 0 then return true end
+        if s.lastBWCast == 0 then return false end
         return (GetTime() - s.lastBWCast) >= (BW_COOLDOWN_ESTIMATE - 3)
     end
 
