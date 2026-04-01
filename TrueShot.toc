@@ -2,7 +2,7 @@
 ## Title: TrueShot
 ## Notes: Rotation overlay for WoW Midnight. Layers class-specific priority logic on top of Blizzard Assisted Combat.
 ## Author: itsDNNS
-## Version: 0.4.1-alpha
+## Version: 0.4.2-alpha
 ## SavedVariables: TrueShotDB
 
 Engine.lua
