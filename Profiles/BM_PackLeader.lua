@@ -122,14 +122,13 @@ function Profile:EvalCondition(cond)
         local cdCheck = IsBWOnCooldown()
         if cdCheck ~= nil then return cdCheck end
         if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) < 60
+        return true
 
     elseif cond.type == "bw_nearly_ready" then
         local cdCheck = IsBWOnCooldown()
         if cdCheck == true then return false end
         if cdCheck == false then return true end
-        if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) >= 55
+        return false
     end
 
     return nil -- not handled by this profile
