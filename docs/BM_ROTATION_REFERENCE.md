@@ -147,11 +147,24 @@ This document is the authoritative reference for rule ordering in `Profiles/BM_P
 
 ## Key Mechanics
 
-### Nature's Ally
-Same as Dark Ranger. Never cast KC twice in a row. Always weave other abilities between KC casts.
+### Bestial Wrath
+- 30s cooldown, 15s duration
+- 20% damage buff for duration
+- Activates Howl of the Pack Leader: next KC summons a beast
+- First KC inside BW also launches Stampede
+- Majority of damage happens inside BW windows
+- Enhanced by: Killer Cobra, Wildspeaker, Bloodshed, Thundering Hooves, Scent of Blood, Piercing Fangs
 
 ### Stampede
-First KC after BW spawns a Stampede in a ~40yd line. Positional -- aim the line through targets. Not trackable by TrueShot.
+First KC after BW spawns a ~40yd line of beasts charging at target. Deals heavy damage over 7s to all enemies inside. Key points:
+- Originates from player position at moment of KC cast
+- Does NOT move after placement
+- Aim through current AND predicted mob positions
+- Essential to position correctly in AoE
+- Not trackable by TrueShot (positional decision)
+
+### Nature's Ally
+Buffs KC by 30% after casting a non-KC ability. Never cast KC twice in a row. Always weave other abilities between KC casts. Also causes BW itself to deal significant damage (passive, no rotational change).
 
 ### Bestial Wrath Prep
 Same as Dark Ranger. Spend all Barbed Shot charges before casting BW.
