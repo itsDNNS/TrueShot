@@ -157,8 +157,10 @@ end
 function Profile:GetPhase()
     local s = self.state
     local bwOnCD = IsBWOnCooldown()
-    if bwOnCD == true and s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15 then return "Burst" end
-    if bwOnCD == false then
+    local bwRecentlyCast = s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15
+    if (bwOnCD == true or (bwOnCD == nil and bwRecentlyCast)) and bwRecentlyCast then return "Burst" end
+    local bwReady = bwOnCD == false or (bwOnCD == nil and s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= 55)
+    if bwReady then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
             if ok and info and info.currentCharges then

@@ -54,18 +54,6 @@ local Profile = {
             },
         },
 
-        -- Barbed Shot charge dump: spend charges when BW is nearly ready
-        {
-            type = "PREFER",
-            spellID = 217200, -- Barbed Shot
-            reason = "Charge Dump",
-            condition = {
-                type = "and",
-                left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
-                right = { type = "bw_nearly_ready" },
-            },
-        },
-
         -- During Withering Fire: Black Arrow is highest DPS priority
         {
             type = "PIN",
@@ -90,7 +78,7 @@ local Profile = {
             },
         },
 
-        -- Outside Withering Fire: prefer Black Arrow when ready
+        -- Outside Withering Fire: prefer Black Arrow when ready (above charge dump)
         {
             type = "PREFER",
             spellID = 466930, -- Black Arrow
@@ -102,7 +90,19 @@ local Profile = {
             },
         },
 
-        -- Wild Thrash: AoE preference (below BA/WF rules, best-effort via PARTIAL nameplate count)
+        -- Barbed Shot charge dump: spend charges when BW is nearly ready (below BA)
+        {
+            type = "PREFER",
+            spellID = 217200, -- Barbed Shot
+            reason = "Charge Dump",
+            condition = {
+                type = "and",
+                left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
+                right = { type = "bw_nearly_ready" },
+            },
+        },
+
+        -- Wild Thrash: AoE preference (best-effort via PARTIAL nameplate count)
         {
             type = "PREFER",
             spellID = 1264359, -- Wild Thrash
@@ -245,7 +245,8 @@ function Profile:GetPhase()
     local s = self.state
     if GetTime() < s.witheringFireUntil then return "Burst" end
     local bwOnCD = IsBWOnCooldown()
-    if bwOnCD == false then
+    local bwReady = bwOnCD == false or (bwOnCD == nil and s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= 55)
+    if bwReady then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
             if ok and info and info.currentCharges then
