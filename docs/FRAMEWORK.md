@@ -1,6 +1,6 @@
 # Framework Model
 
-`HunterFlow` is now structured around three layers:
+`TrueShot` is now structured around three layers:
 
 1. `Engine`
 2. `Profile`
@@ -142,7 +142,7 @@ The engine should never fail hard when a profile-specific heuristic cannot run.
 
 ## Current Reality
 
-Today, `HunterFlow` is still earlier than the eventual broader framework goal:
+Today, `TrueShot` is still earlier than the eventual broader framework goal:
 
 - one shared engine
 - one shipped BM profile path

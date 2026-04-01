@@ -2,7 +2,7 @@
 
 Tracks the validation status of shared hunter signal surfaces under Midnight.
 
-Each signal is tested in-game using `/hf probe` and classified per the scheme below. Results here are the source of truth for whether Engine conditions or future profiles may depend on a signal.
+Each signal is tested in-game using `/ts probe` and classified per the scheme below. Results here are the source of truth for whether Engine conditions or future profiles may depend on a signal.
 
 ## Classification Scheme
 
@@ -37,8 +37,8 @@ Fallback if unavailable: condition returns false, interrupt hints do not fire.
 | Namespace present | yes | `C_NamePlate` exists on live client |
 | pcall safe | yes | No errors |
 | Table issecretvalue | no (not secret) | Top-level table readable |
-| Entry token issecretvalue | untested | Needs `/hf probe plates` with mobs |
-| UnitCanAttack issecretvalue | untested | Needs `/hf probe plates` with mobs |
+| Entry token issecretvalue | untested | Needs `/ts probe plates` with mobs |
+| UnitCanAttack issecretvalue | untested | Needs `/ts probe plates` with mobs |
 | Hostile filter accuracy | overcounts | Returns all visible nameplates, not just combat targets. Test: 5 plates visible, only ~2 in active combat. |
 | CVar sensitivity | assumed yes | Count depends on nameplate visibility settings and render distance |
 | Instance behavior | untested | Expected more accurate in dungeons (all visible = all pulled) |
@@ -79,11 +79,11 @@ Validated for: charge-count conditions (e.g. `spell_charges >= 2`). Recharge tim
 ## Probe Commands
 
 ```
-/hf probe target          -- test target casting APIs
-/hf probe plates          -- test nameplate enumeration
-/hf probe charges [id]    -- test spell charges (default: Barbed Shot 217200)
-/hf probe all [id]        -- run all probes
-/hf probe help            -- list probe commands
+/ts probe target          -- test target casting APIs
+/ts probe plates          -- test nameplate enumeration
+/ts probe charges [id]    -- test spell charges (default: Barbed Shot 217200)
+/ts probe all [id]        -- run all probes
+/ts probe help            -- list probe commands
 ```
 
 ## Test Contexts

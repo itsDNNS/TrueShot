@@ -1,10 +1,10 @@
--- HunterFlow Engine: generic queue computation and condition evaluation
+-- TrueShot Engine: generic queue computation and condition evaluation
 -- Profile-agnostic - delegates spec-specific conditions to the active profile
 
-HunterFlow = HunterFlow or {}
-HunterFlow.Engine = {}
+TrueShot = TrueShot or {}
+TrueShot.Engine = {}
 
-local Engine = HunterFlow.Engine
+local Engine = TrueShot.Engine
 
 Engine.burstModeActive = false
 Engine.combatStartTime = nil
@@ -244,18 +244,18 @@ end
 -- Profile management
 ------------------------------------------------------------------------
 
-HunterFlow.Profiles = {}
+TrueShot.Profiles = {}
 
 function Engine:RegisterProfile(profile)
     local specID = profile.specID
-    if not HunterFlow.Profiles[specID] then
-        HunterFlow.Profiles[specID] = {}
+    if not TrueShot.Profiles[specID] then
+        TrueShot.Profiles[specID] = {}
     end
-    table.insert(HunterFlow.Profiles[specID], profile)
+    table.insert(TrueShot.Profiles[specID], profile)
 end
 
 function Engine:ActivateProfile(specID)
-    local candidates = HunterFlow.Profiles[specID]
+    local candidates = TrueShot.Profiles[specID]
     if not candidates or #candidates == 0 then
         self.activeProfile = nil
         return false

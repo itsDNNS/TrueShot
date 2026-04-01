@@ -1,6 +1,6 @@
 # Project Goals
 
-`HunterFlow` needs explicit product goals so framework work, profile work, and UI work do not drift into contradictory directions.
+`TrueShot` needs explicit product goals so framework work, profile work, and UI work do not drift into contradictory directions.
 
 ## Primary Goal
 
@@ -13,7 +13,7 @@ Build a hunter-focused recommendation framework for Retail `Midnight` that is:
 
 In short:
 
-`HunterFlow` should aim for the highest practical gameplay value per unit of client overhead.
+`TrueShot` should aim for the highest practical gameplay value per unit of client overhead.
 
 ## Product Principles
 
@@ -35,7 +35,7 @@ The goal is not a tiny toy addon.
 
 The goal is to stay lightweight **while still delivering the full practical functionality that is defensible under the `Midnight` API**.
 
-That means `HunterFlow` should still try to provide:
+That means `TrueShot` should still try to provide:
 
 - a reliable recommendation queue
 - spec-aware profile behavior where signals are legal and validated
@@ -45,7 +45,7 @@ That means `HunterFlow` should still try to provide:
 
 ### 3. Full functionality has a boundary
 
-`HunterFlow` should pursue broad functionality inside the legal API surface, not outside it.
+`TrueShot` should pursue broad functionality inside the legal API surface, not outside it.
 
 So "full functionality" does **not** mean:
 
@@ -79,7 +79,7 @@ These goals imply a few concrete defaults:
 
 ## Non-Goals
 
-`HunterFlow` is not trying to become:
+`TrueShot` is not trying to become:
 
 - a kitchen-sink UI addon
 - a hidden-state combat simulator

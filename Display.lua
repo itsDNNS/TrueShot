@@ -1,12 +1,12 @@
--- HunterFlow Display: presentation layer for the queue overlay
+-- TrueShot Display: presentation layer for the queue overlay
 
-local Engine = HunterFlow.Engine
+local Engine = TrueShot.Engine
 local GetTime = GetTime
 local C_Spell_GetSpellTexture = C_Spell and C_Spell.GetSpellTexture
 local C_Spell_GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
 
-HunterFlow.Display = {}
-local Display = HunterFlow.Display
+TrueShot.Display = {}
+local Display = TrueShot.Display
 
 local SUCCESS_FLASH_DURATION = 0.35
 local MIN_COOLDOWN_SWIPE_DURATION = 2.0
@@ -18,7 +18,7 @@ local ICON_TEXTURE_INSET = 3
 -- Container frame
 ------------------------------------------------------------------------
 
-local container = CreateFrame("Frame", "HunterFlowFrame", UIParent,
+local container = CreateFrame("Frame", "TrueShotFrame", UIParent,
     "BackdropTemplate")
 container:SetSize(200, 50)
 container:SetPoint("CENTER", UIParent, "CENTER", 0, -50)
@@ -27,7 +27,7 @@ container:EnableMouse(true)
 container:SetClampedToScreen(true)
 container:RegisterForDrag("LeftButton")
 container:SetScript("OnDragStart", function(self)
-    if not HunterFlow.GetOpt("locked") then self:StartMoving() end
+    if not TrueShot.GetOpt("locked") then self:StartMoving() end
 end)
 container:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
@@ -98,10 +98,10 @@ local function GetKeybindForSpell(spellID)
 end
 
 local function CreateIcon(index)
-    local size = HunterFlow.GetOpt("iconSize")
-    local spacing = HunterFlow.GetOpt("iconSpacing")
+    local size = TrueShot.GetOpt("iconSize")
+    local spacing = TrueShot.GetOpt("iconSpacing")
 
-    local frame = CreateFrame("Frame", "HunterFlowIcon" .. index,
+    local frame = CreateFrame("Frame", "TrueShotIcon" .. index,
         content)
     frame:SetSize(size, size)
     frame:SetPoint("LEFT", content, "LEFT",
@@ -162,8 +162,8 @@ local function CreateIcon(index)
 end
 
 local function LayoutIcons()
-    local size = HunterFlow.GetOpt("iconSize")
-    local spacing = HunterFlow.GetOpt("iconSpacing")
+    local size = TrueShot.GetOpt("iconSize")
+    local spacing = TrueShot.GetOpt("iconSpacing")
     for index, frame in ipairs(icons) do
         frame:SetSize(size, size)
         frame:ClearAllPoints()
@@ -177,16 +177,16 @@ local function LayoutIcons()
 end
 
 local function EnsureIcons()
-    local count = HunterFlow.GetOpt("iconCount")
+    local count = TrueShot.GetOpt("iconCount")
     while #icons < count do
         icons[#icons + 1] = CreateIcon(#icons + 1)
     end
 end
 
 function Display:UpdateContainerSize()
-    local count = HunterFlow.GetOpt("iconCount")
-    local size = HunterFlow.GetOpt("iconSize")
-    local spacing = HunterFlow.GetOpt("iconSpacing")
+    local count = TrueShot.GetOpt("iconCount")
+    local size = TrueShot.GetOpt("iconSize")
+    local spacing = TrueShot.GetOpt("iconSpacing")
     local width = count * size + (count - 1) * spacing
     container:SetSize(
         width + (CONTAINER_PADDING_X * 2),
@@ -198,12 +198,12 @@ end
 
 function Display:ApplyOptions()
     self:UpdateContainerSize()
-    container:EnableMouse(not HunterFlow.GetOpt("locked"))
+    container:EnableMouse(not TrueShot.GetOpt("locked"))
 end
 
 function Display:UpdateCooldown(icon, spellID)
     if not icon or not icon.cooldown then return end
-    if not HunterFlow.GetOpt("showCooldownSwipe") or not spellID or not C_Spell_GetSpellCooldown then
+    if not TrueShot.GetOpt("showCooldownSwipe") or not spellID or not C_Spell_GetSpellCooldown then
         ClearCooldown(icon)
         return
     end
@@ -235,7 +235,7 @@ end
 
 function Display:UpdateCastFeedback(icon, now)
     if not icon or not icon.success then return end
-    if not HunterFlow.GetOpt("showCastFeedback") then
+    if not TrueShot.GetOpt("showCastFeedback") then
         icon.success:Hide()
         icon.successUntil = 0
         return
@@ -252,7 +252,7 @@ end
 
 function Display:UpdateQueue(queue)
     EnsureIcons()
-    local count = HunterFlow.GetOpt("iconCount")
+    local count = TrueShot.GetOpt("iconCount")
     local now = GetTime()
 
     for i = 1, count do
@@ -294,7 +294,7 @@ function Display:UpdateQueue(queue)
     local meta = Engine.lastQueueMeta
 
     -- Why overlay: show reason for position 1
-    if HunterFlow.GetOpt("showWhyOverlay") and meta and meta.reason then
+    if TrueShot.GetOpt("showWhyOverlay") and meta and meta.reason then
         reasonText:SetText(meta.reason)
         reasonText:Show()
     else
@@ -302,15 +302,15 @@ function Display:UpdateQueue(queue)
     end
 
     -- Phase indicator: show current rotation phase above overlay
-    if HunterFlow.GetOpt("showPhaseIndicator") and meta and meta.phase then
+    if TrueShot.GetOpt("showPhaseIndicator") and meta and meta.phase then
         phaseText:SetText(meta.phase)
         phaseText:Show()
     else
         phaseText:Hide()
     end
 
-    -- Override indicator: tint primary icon border when HunterFlow overrides AC
-    if HunterFlow.GetOpt("showOverrideIndicator") and icons[1] and icons[1].border then
+    -- Override indicator: tint primary icon border when TrueShot overrides AC
+    if TrueShot.GetOpt("showOverrideIndicator") and icons[1] and icons[1].border then
         if meta and (meta.source == "pin" or meta.source == "prefer") then
             icons[1].border:SetVertexColor(0.30, 0.85, 1.0, 1.0)
         else
@@ -322,7 +322,7 @@ function Display:UpdateQueue(queue)
 end
 
 function Display:OnSpellCastSucceeded(spellID)
-    if not HunterFlow.GetOpt("showCastFeedback") then return end
+    if not TrueShot.GetOpt("showCastFeedback") then return end
     local now = GetTime()
     for _, icon in ipairs(icons) do
         if icon.spellID == spellID then
@@ -342,14 +342,14 @@ local timeSinceUpdate = 0
 function Display:Enable()
     self:ApplyOptions()
     EnsureIcons()
-    container:EnableMouse(not HunterFlow.GetOpt("locked"))
+    container:EnableMouse(not TrueShot.GetOpt("locked"))
     container:Show()
     container:SetScript("OnUpdate", function(_, elapsed)
         timeSinceUpdate = timeSinceUpdate + elapsed
         if timeSinceUpdate < UPDATE_INTERVAL then return end
         timeSinceUpdate = 0
 
-        local queue = Engine:ComputeQueue(HunterFlow.GetOpt("iconCount"))
+        local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
         Display:UpdateQueue(queue)
     end)
 end
@@ -368,6 +368,6 @@ function Display:ResetPosition()
     container:SetPoint("CENTER", UIParent, "CENTER", 0, -50)
 end
 
-HunterFlow.RegisterOptCallback(function()
+TrueShot.RegisterOptCallback(function()
     Display:ApplyOptions()
 end)

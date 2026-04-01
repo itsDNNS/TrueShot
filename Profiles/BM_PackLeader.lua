@@ -1,7 +1,7 @@
--- HunterFlow Profile: Beast Mastery / Pack Leader (Spec 253)
+-- TrueShot Profile: Beast Mastery / Pack Leader (Spec 253)
 -- Simpler than Dark Ranger: BW management, Nature's Ally weaving, charge dump
 
-local Engine = HunterFlow.Engine
+local Engine = TrueShot.Engine
 
 local BW_COOLDOWN_ESTIMATE = 29
 

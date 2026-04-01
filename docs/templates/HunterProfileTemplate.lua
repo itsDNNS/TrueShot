@@ -1,8 +1,8 @@
--- HunterFlow Profile Template
+-- TrueShot Profile Template
 -- Copy this file when starting a new profile module.
--- Do not add the file to HunterFlow.toc until the profile is ready to load.
+-- Do not add the file to TrueShot.toc until the profile is ready to load.
 
-local Engine = HunterFlow.Engine
+local Engine = TrueShot.Engine
 
 local Profile = {
     id = "Hunter.MM.ExampleHero",
