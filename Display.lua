@@ -78,10 +78,14 @@ local function ClearCooldown(icon)
     icon.cooldown:Hide()
 end
 
-local function GetKeybindForSpell(spellID)
+local keybindCache = {}
+local keybindCacheDirty = true
+
+local function RebuildKeybindCache()
+    wipe(keybindCache)
     for slot = 1, 120 do
         local actionType, id = GetActionInfo(slot)
-        if actionType == "spell" and id == spellID then
+        if actionType == "spell" and id then
             local key = GetBindingKey("ACTIONBUTTON" .. ((slot - 1) % 12 + 1))
             if not key then
                 local bar = math.ceil(slot / 12)
@@ -92,10 +96,23 @@ local function GetKeybindForSpell(spellID)
                     key = GetBindingKey("MULTIACTIONBAR" .. (bar - 1) .. "BUTTON" .. btn)
                 end
             end
-            if key then return key end
+            if key and not keybindCache[id] then
+                keybindCache[id] = key
+            end
         end
     end
-    return nil
+    keybindCacheDirty = false
+end
+
+local keybindFrame = CreateFrame("Frame")
+keybindFrame:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
+keybindFrame:RegisterEvent("UPDATE_BINDINGS")
+keybindFrame:RegisterEvent("SPELLS_CHANGED")
+keybindFrame:SetScript("OnEvent", function() keybindCacheDirty = true end)
+
+local function GetKeybindForSpell(spellID)
+    if keybindCacheDirty then RebuildKeybindCache() end
+    return keybindCache[spellID]
 end
 
 local function CreateIcon(index)

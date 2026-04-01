@@ -15,6 +15,34 @@ local function IsSecret(val)
     return issecretvalue and issecretvalue(val) or false
 end
 
+-- Per-tick hostile nameplate cache (invalidated each ComputeQueue call)
+local _hostileCount = 0
+local _hostileCountTick = 0
+
+local function GetHostileCount()
+    local now = GetTime()
+    if _hostileCountTick == now then return _hostileCount end
+    _hostileCountTick = now
+    if not C_NamePlate or not C_NamePlate.GetNamePlates then
+        _hostileCount = 0
+        return 0
+    end
+    local ok, plates = pcall(C_NamePlate.GetNamePlates)
+    if not ok or not plates or IsSecret(plates) then
+        _hostileCount = 0
+        return 0
+    end
+    local count = 0
+    for _, plate in ipairs(plates) do
+        local unit = plate.namePlateUnitToken
+        if unit and UnitExists(unit) and UnitCanAttack("player", unit) then
+            count = count + 1
+        end
+    end
+    _hostileCount = count
+    return count
+end
+
 ------------------------------------------------------------------------
 -- Condition evaluator (generic conditions only)
 ------------------------------------------------------------------------
@@ -40,17 +68,7 @@ function Engine:EvalCondition(cond)
         return false
 
     elseif cond.type == "target_count" then
-        if not C_NamePlate or not C_NamePlate.GetNamePlates then return false end
-        local ok, plates = pcall(C_NamePlate.GetNamePlates)
-        if not ok or not plates then return false end
-        if IsSecret(plates) then return false end
-        local count = 0
-        for _, plate in ipairs(plates) do
-            local unit = plate.namePlateUnitToken
-            if unit and UnitExists(unit) and UnitCanAttack("player", unit) then
-                count = count + 1
-            end
-        end
+        local count = GetHostileCount()
         if cond.op == ">=" then return count >= cond.value end
         if cond.op == ">" then return count > cond.value end
         return false
@@ -133,6 +151,10 @@ local _condBlacklist = {}
 local _seen = {}
 local _aoeCondition = { type = "target_count", op = ">=", value = 3 }
 
+local function IsBlocked(spellID)
+    return blacklistedSpells[spellID] or _condBlacklist[spellID]
+end
+
 function Engine:ComputeQueue(iconCount)
     wipe(_queue)
     local queue = _queue
@@ -162,9 +184,7 @@ function Engine:ComputeQueue(iconCount)
         end
     end
 
-    local function IsBlocked(spellID)
-        return blacklistedSpells[spellID] or condBlacklist[spellID]
-    end
+    -- IsBlocked uses module-level tables (blacklistedSpells + _condBlacklist)
 
     -- PIN rules (highest priority, first match wins)
     local pinnedSpell = nil
