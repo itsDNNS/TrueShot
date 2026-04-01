@@ -10,6 +10,8 @@ The addon does not try to recreate old full-state rotation engines. Instead, it 
 - multiple spec profiles
 - explicit rules about what Blizzard's API still allows and what it does not
 
+The overall project goals are documented in [Project Goals](docs/PROJECT_GOALS.md).
+
 ## Status
 
 `HunterFlow` is currently an `alpha`.
@@ -59,6 +61,7 @@ It does **not** claim to be a full replacement for legacy full-state rotation si
 
 The framework direction is documented here:
 
+- [Project Goals](docs/PROJECT_GOALS.md)
 - [API Constraints](docs/API_CONSTRAINTS.md)
 - [Framework Model](docs/FRAMEWORK.md)
 - [Profile Contract](docs/PROFILE_CONTRACT.md)
