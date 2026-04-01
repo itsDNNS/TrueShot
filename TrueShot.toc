@@ -1,6 +1,6 @@
 ## Interface: 120000
 ## Title: TrueShot
-## Notes: Hunter rotation overlay for WoW Midnight. BM profiles: Dark Ranger, Pack Leader.
+## Notes: Rotation overlay for WoW Midnight. Layers class-specific priority logic on top of Blizzard Assisted Combat.
 ## Author: itsDNNS
 ## Version: 0.3.0-alpha
 ## SavedVariables: TrueShotDB

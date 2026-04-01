@@ -1,4 +1,4 @@
--- SignalProbe: in-game validation harness for shared hunter signals
+-- SignalProbe: in-game validation harness for shared signal surfaces
 -- Run /ts probe <signal> to test API surfaces before profiles depend on them.
 -- Results feed into docs/SIGNAL_VALIDATION.md classification.
 
