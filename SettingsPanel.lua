@@ -21,10 +21,10 @@ local function CreateCheckbox(parent, label, description, relativeTo, key)
     check.Text:SetText(label)
 
     local desc = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    desc:SetPoint("TOPLEFT", check, "BOTTOMLEFT", 24, -2)
+    desc:SetPoint("TOPLEFT", check, "BOTTOMLEFT", 0, -2)
     desc:SetPoint("RIGHT", parent, "RIGHT", -24, 0)
     desc:SetJustifyH("LEFT")
-    desc:SetText(description)
+    desc:SetText("   " .. description)
 
     check:SetScript("OnClick", function(self)
         TrueShot.SetOpt(key, self:GetChecked() and true or false)
