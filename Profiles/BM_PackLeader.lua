@@ -30,6 +30,7 @@ local Profile = {
         {
             type = "PIN",
             spellID = 1264359, -- Wild Thrash
+            reason = "AoE 3+",
             condition = { type = "target_count", op = ">=", value = 3 },
         },
 
@@ -48,6 +49,7 @@ local Profile = {
         {
             type = "PREFER",
             spellID = 217200, -- Barbed Shot
+            reason = "Charge Dump",
             condition = {
                 type = "and",
                 left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },

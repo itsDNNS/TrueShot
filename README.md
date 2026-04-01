@@ -42,6 +42,7 @@ Planned direction:
 - Keeps interrupt logic out of the primary queue by default
 - Supports click-through while locked
 - Registers a native `HunterFlow` category in the in-game Settings UI
+- Keeps signal probe diagnostics disabled by default unless you explicitly enable them
 
 ## Design Constraints
 
@@ -81,6 +82,8 @@ They describe the target architecture, not a claim that the current alpha is alr
 - `/hf hide`
 - `/hf show`
 - `/hf debug`
+- `/hf diagnostics on|off`
+- `/hf probe ...` (only when diagnostics are enabled)
 - `/hunterflow`
 
 ## Installation

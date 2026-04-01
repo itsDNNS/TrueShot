@@ -45,6 +45,7 @@ local Profile = {
         {
             type = "PREFER",
             spellID = 217200, -- Barbed Shot
+            reason = "Charge Dump",
             condition = {
                 type = "and",
                 left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
@@ -56,6 +57,7 @@ local Profile = {
         {
             type = "PIN",
             spellID = 466930, -- Black Arrow
+            reason = "Withering Fire",
             condition = {
                 type = "and",
                 left  = { type = "ba_ready" },
@@ -67,6 +69,7 @@ local Profile = {
         {
             type = "PREFER",
             spellID = 392060, -- Wailing Arrow
+            reason = "WF Ending",
             condition = {
                 type = "and",
                 left  = { type = "wa_available" },
@@ -78,6 +81,7 @@ local Profile = {
         {
             type = "PREFER",
             spellID = 466930, -- Black Arrow
+            reason = "BA Ready",
             condition = {
                 type = "and",
                 left  = { type = "ba_ready" },
@@ -89,6 +93,7 @@ local Profile = {
         {
             type = "PREFER",
             spellID = 1264359, -- Wild Thrash
+            reason = "AoE 3+",
             condition = { type = "target_count", op = ">=", value = 3 },
         },
 

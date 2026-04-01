@@ -83,9 +83,23 @@ local function CreateSettingsPanel()
         HunterFlow.SetOpt("showCooldownSwipe", self:GetChecked() and true or false)
     end)
 
+    local whyCheck, whyDesc = CreateCheckbox(
+        panel,
+        "Show recommendation reason",
+        "Display a short label below the primary icon explaining why it was recommended (e.g. Withering Fire, Charge Dump, AoE). Hidden when Assisted Combat passthrough is active.",
+        cooldownDesc, 0, -18, "showWhyOverlay"
+    )
+
+    local diagnosticsCheck, diagnosticsDesc = CreateCheckbox(
+        panel,
+        "Enable probe diagnostics",
+        "Keep the heavier signal probe commands off by default. Turn this on only when you explicitly want `/hf probe ...` for API validation or debugging.",
+        whyDesc, 0, -18, "enableDiagnostics"
+    )
+
     local unlockButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
     unlockButton:SetSize(160, 24)
-    unlockButton:SetPoint("TOPLEFT", cooldownDesc, "BOTTOMLEFT", 0, -18)
+    unlockButton:SetPoint("TOPLEFT", diagnosticsDesc, "BOTTOMLEFT", 0, -18)
     unlockButton:SetText("Unlock And Recenter")
     unlockButton:SetScript("OnClick", function()
         HunterFlow.SetOpt("locked", false)
@@ -100,12 +114,14 @@ local function CreateSettingsPanel()
     hint:SetPoint("TOPLEFT", unlockButton, "BOTTOMLEFT", 0, -10)
     hint:SetPoint("RIGHT", panel, "RIGHT", -24, 0)
     hint:SetJustifyH("LEFT")
-    hint:SetText("For profile logic and diagnostics, keep using `/hf debug` and `/hf probe`. This panel is only for persistent UI behavior.")
+    hint:SetText("For profile logic, keep using `/hf debug`. Probe commands stay behind the diagnostics toggle above, or `/hf diagnostics on`, so they only run when you explicitly need them.")
 
     panel:SetScript("OnShow", function()
         lockCheck.sync()
         castCheck.sync()
         cooldownCheck:SetChecked(HunterFlow.GetOpt("showCooldownSwipe"))
+        whyCheck.sync()
+        diagnosticsCheck.sync()
     end)
 
     return panel
