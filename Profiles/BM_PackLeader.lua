@@ -141,8 +141,10 @@ function Profile:GetPhase()
     if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN_ESTIMATE - 3) then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
-            if ok and info and info.currentCharges and info.currentCharges > 0 then
-                return "Charge Dump"
+            if ok and info and info.currentCharges then
+                if not (issecretvalue and issecretvalue(info.currentCharges)) and info.currentCharges > 0 then
+                    return "Charge Dump"
+                end
             end
         end
     end
