@@ -229,11 +229,15 @@ function Engine:ActivateProfile(specID)
         return false
     end
 
+    local prev = self.activeProfile
+
     -- Match by markerSpell (hero path detection via IsPlayerSpell)
     for _, profile in ipairs(candidates) do
         if profile.markerSpell and IsPlayerSpell(profile.markerSpell) then
             self.activeProfile = profile
-            if profile.ResetState then profile:ResetState() end
+            if profile ~= prev then
+                if profile.ResetState then profile:ResetState() end
+            end
             self:RebuildBlacklist()
             return true
         end
@@ -243,7 +247,9 @@ function Engine:ActivateProfile(specID)
     for _, profile in ipairs(candidates) do
         if not profile.markerSpell then
             self.activeProfile = profile
-            if profile.ResetState then profile:ResetState() end
+            if profile ~= prev then
+                if profile.ResetState then profile:ResetState() end
+            end
             self:RebuildBlacklist()
             return true
         end
