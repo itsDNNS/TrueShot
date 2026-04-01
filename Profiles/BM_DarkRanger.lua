@@ -206,15 +206,16 @@ function Profile:EvalCondition(cond)
     elseif cond.type == "bw_on_cd" then
         local cdCheck = IsBWOnCooldown()
         if cdCheck ~= nil then return cdCheck end
+        -- API unavailable: assume on CD unless never cast
         if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) < 60  -- conservative fallback
+        return true
 
     elseif cond.type == "bw_nearly_ready" then
         local cdCheck = IsBWOnCooldown()
-        if cdCheck == true then return false end   -- still on CD
-        if cdCheck == false then return true end   -- CD done, ready to use
-        if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) >= 55   -- conservative fallback
+        if cdCheck == true then return false end
+        if cdCheck == false then return true end
+        -- API unavailable: never assume ready
+        return false
     end
 
     return nil -- not handled by this profile
