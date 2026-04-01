@@ -71,7 +71,6 @@ local Profile = {
 ------------------------------------------------------------------------
 
 function Profile:ResetState()
-    self.state.lastBWCast = 0
     self.state.lastCastWasKC = false
 end
 
@@ -92,7 +91,6 @@ end
 
 function Profile:OnCombatEnd()
     self.state.lastCastWasKC = false
-    self.state.lastBWCast = 0
 end
 
 ------------------------------------------------------------------------
@@ -137,6 +135,7 @@ end
 ------------------------------------------------------------------------
 
 function Profile:GetPhase()
+    if not UnitAffectingCombat("player") then return nil end
     local s = self.state
     if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15 then return "Burst" end
     if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3) then

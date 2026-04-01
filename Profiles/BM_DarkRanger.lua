@@ -113,7 +113,6 @@ local Profile = {
 function Profile:ResetState()
     self.state.blackArrowReady = true
     self.state.lastBlackArrowCast = 0
-    self.state.lastBWCast = 0
     self.state.witheringFireUntil = 0
     self.state.wailingArrowAvailable = false
     self.state.lastCastWasKC = false
@@ -158,7 +157,6 @@ end
 function Profile:OnCombatEnd()
     self.state.lastCastWasKC = false
     self.state.witheringFireUntil = 0
-    self.state.lastBWCast = 0
 end
 
 ------------------------------------------------------------------------
@@ -224,6 +222,7 @@ end
 ------------------------------------------------------------------------
 
 function Profile:GetPhase()
+    if not UnitAffectingCombat("player") then return nil end
     local s = self.state
     if GetTime() < s.witheringFireUntil then return "Burst" end
     if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3) then
