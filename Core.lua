@@ -69,6 +69,7 @@ eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
 eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
@@ -107,7 +108,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         Engine:OnCombatEnd()
 
     elseif event == "PLAYER_SPECIALIZATION_CHANGED"
-        or event == "PLAYER_TALENT_UPDATE" then
+        or event == "PLAYER_TALENT_UPDATE"
+        or event == "SPELLS_CHANGED" then
         local prev = Engine.activeProfile
         TryActivate()
         local curr = Engine.activeProfile
