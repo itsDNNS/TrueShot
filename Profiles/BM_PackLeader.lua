@@ -3,20 +3,7 @@
 
 local Engine = TrueShot.Engine
 
-local BW_SPELL_ID = 19574
-local C_Spell_GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
-
-local function IsBWOnCooldown()
-    if C_Spell_GetSpellCooldown then
-        local ok, cd = pcall(C_Spell_GetSpellCooldown, BW_SPELL_ID)
-        if ok and cd then
-            local duration = cd.duration or 0
-            if issecretvalue and issecretvalue(duration) then return nil end
-            return duration > 1.5
-        end
-    end
-    return nil
-end
+local BW_COOLDOWN = 30
 
 ------------------------------------------------------------------------
 -- Profile definition
@@ -119,16 +106,12 @@ function Profile:EvalCondition(cond)
         return s.lastCastWasKC
 
     elseif cond.type == "bw_on_cd" then
-        local cdCheck = IsBWOnCooldown()
-        if cdCheck ~= nil then return cdCheck end
         if s.lastBWCast == 0 then return false end
-        return true
+        return (GetTime() - s.lastBWCast) < BW_COOLDOWN
 
     elseif cond.type == "bw_nearly_ready" then
-        local cdCheck = IsBWOnCooldown()
-        if cdCheck == true then return false end
-        if cdCheck == false then return true end
-        return false
+        if s.lastBWCast == 0 then return false end
+        return (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3)
     end
 
     return nil -- not handled by this profile
@@ -155,11 +138,8 @@ end
 
 function Profile:GetPhase()
     local s = self.state
-    local bwOnCD = IsBWOnCooldown()
-    local bwRecentlyCast = s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15
-    if (bwOnCD == true or (bwOnCD == nil and bwRecentlyCast)) and bwRecentlyCast then return "Burst" end
-    local bwReady = bwOnCD == false or (bwOnCD == nil and s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= 55)
-    if bwReady then
+    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15 then return "Burst" end
+    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3) then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
             if ok and info and info.currentCharges then
