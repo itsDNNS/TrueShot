@@ -20,11 +20,11 @@ Each signal is tested in-game using `/hf probe` and classified per the scheme be
 | Check | Result | Notes |
 |-------|--------|-------|
 | API | `UnitCastingInfo("target")` / `UnitChannelInfo("target")` | |
-| pcall safe | | |
-| issecretvalue | | |
-| Value accuracy | | Test while target is casting |
-| Instance behavior | | Test in dungeon/raid |
-| **Classification** | **UNKNOWN** | |
+| pcall safe | untested | |
+| issecretvalue | untested | |
+| Value accuracy | untested | Needs casting mob targeted |
+| Instance behavior | untested | Needs dungeon/raid boss test |
+| **Classification** | **UNKNOWN** | Pending in-game test with casting target |
 
 Engine condition: `target_casting` (Engine.lua)
 Fallback if unavailable: condition returns false, interrupt hints do not fire.
@@ -34,18 +34,20 @@ Fallback if unavailable: condition returns false, interrupt hints do not fire.
 | Check | Result | Notes |
 |-------|--------|-------|
 | API | `C_NamePlate.GetNamePlates()` | |
-| Namespace present | | `C_NamePlate` exists? |
-| pcall safe | | |
-| Table issecretvalue | | Top-level table |
-| Entry token issecretvalue | | `plate.namePlateUnitToken` per entry |
-| UnitCanAttack issecretvalue | | Per hostile unit |
-| Hostile filter accuracy | | Pull 2+ mobs, verify count |
-| CVar sensitivity | | Test with different nameplate settings |
-| Instance behavior | | Test in dungeon/raid |
-| **Classification** | **UNKNOWN** | |
+| Namespace present | yes | `C_NamePlate` exists on live client |
+| pcall safe | yes | No errors |
+| Table issecretvalue | no (not secret) | Top-level table readable |
+| Entry token issecretvalue | untested | Needs `/hf probe plates` with mobs |
+| UnitCanAttack issecretvalue | untested | Needs `/hf probe plates` with mobs |
+| Hostile filter accuracy | overcounts | Returns all visible nameplates, not just combat targets. Test: 5 plates visible, only ~2 in active combat. |
+| CVar sensitivity | assumed yes | Count depends on nameplate visibility settings and render distance |
+| Instance behavior | untested | Expected more accurate in dungeons (all visible = all pulled) |
+| **Classification** | **PARTIAL** | API works and is not secret, but counts all visible hostile nameplates, not only mobs in combat range. Usable as best-effort AoE hint, not as hard rule dependency. |
 
 Engine condition: `target_count` (Engine.lua)
 Fallback if unavailable: condition returns false, AoE PREFER rules do not fire, single-target AC passthrough.
+
+Note: A more precise filter could add `UnitAffectingCombat(unit)` per nameplate, but that call may be secret in instances. For now, treat nameplate count as a coarse heuristic that is more reliable in dungeon pulls than open world.
 
 ### Spell Charges
 
@@ -53,16 +55,18 @@ Fallback if unavailable: condition returns false, AoE PREFER rules do not fire, 
 |-------|--------|-------|
 | API | `C_Spell.GetSpellCharges(spellID)` | |
 | Test spell | Barbed Shot (217200) | |
-| pcall safe | | |
-| currentCharges secret | | |
-| maxCharges secret | | |
-| cooldownStartTime secret | | Recharge timing may be restricted |
-| cooldownDuration secret | | |
-| Real-time update | | Consume charge, re-probe |
-| **Classification** | **UNKNOWN** | |
+| pcall safe | yes | No errors |
+| currentCharges secret | no (not secret) | Returned `2` |
+| maxCharges secret | no (not secret) | Returned `2` |
+| cooldownStartTime secret | untested | Needs charge consumption + re-probe |
+| cooldownDuration secret | untested | Needs charge consumption + re-probe |
+| Real-time update | untested | Needs charge consumption + re-probe |
+| **Classification** | **VALIDATED** | Charge count (current/max) is non-secret and accurate. Recharge timing fields still need confirmation but are not required for charge-count rules. |
 
 Engine condition: `spell_charges` (Engine.lua)
 Fallback if unavailable: condition returns false, charge-based timing rules do not fire. Cast-event timer heuristic remains as backup.
+
+Validated for: charge-count conditions (e.g. `spell_charges >= 2`). Recharge timing usability TBD.
 
 ## Runtime Cost
 
@@ -86,8 +90,9 @@ Fallback if unavailable: condition returns false, charge-based timing rules do n
 
 Record results from each context where tested:
 
-- [ ] Open world (solo, 1 target)
-- [ ] Open world (2+ hostile mobs)
-- [ ] Dungeon (trash pack)
-- [ ] Dungeon (boss - casting check)
-- [ ] Different nameplate CVar settings
+- [x] Open world (solo, 0 targets) - plates: 0, charges: 2/2
+- [x] Open world (5 visible nameplates, ~2 in combat) - plates: 5
+- [ ] Dungeon (trash pack) - expected more accurate plate count
+- [ ] Dungeon (boss - casting check) - needed for target_casting validation
+- [ ] Different nameplate CVar settings - needed for plate count sensitivity
+- [ ] Charge consumption test - needed for recharge timing fields
