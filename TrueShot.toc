@@ -3,7 +3,7 @@
 ## Notes: Rotation overlay for WoW Midnight. Layers class-specific priority logic on top of Blizzard Assisted Combat.
 ## Author: itsDNNS
 ## Version: 0.3.0-alpha
-## SavedVariables: TrueShotDB, HunterFlowDB
+## SavedVariables: TrueShotDB
 
 Engine.lua
 Profiles/BM_DarkRanger.lua
