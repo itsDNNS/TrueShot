@@ -85,7 +85,7 @@ end
 local function CreateSettingsPanel()
     local panel = CreateFrame("Frame", "TrueShotSettingsPanel", UIParent)
     panel.name = "TrueShot"
-    panel:SetSize(640, 480)
+    panel:SetSize(640, 800)
 
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightLarge")
     title:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
