@@ -10,6 +10,14 @@ TrueShot = TrueShot or {}
 
 TrueShotDB = TrueShotDB or {}
 
+-- One-time migration from legacy HunterFlowDB
+if HunterFlowDB and next(HunterFlowDB) and not next(TrueShotDB) then
+    for k, v in pairs(HunterFlowDB) do
+        TrueShotDB[k] = v
+    end
+    HunterFlowDB = nil
+end
+
 local DEFAULTS = {
     iconCount = 2,
     iconSize = 40,
@@ -178,7 +186,7 @@ SLASH_TRUESHOT2 = "/trueshot"
 SlashCmdList["TRUESHOT"] = function(msg)
     Engine = TrueShot.Engine
     Display = TrueShot.Display
-    msg = msg:lower():trim()
+    msg = strtrim(msg:lower())
 
     if msg == "lock" then
         TrueShot.SetOpt("locked", true)
@@ -205,7 +213,11 @@ SlashCmdList["TRUESHOT"] = function(msg)
 
     elseif msg == "show" then
         TrueShot.SetOpt("hidden", false)
-        Display:Enable()
+        if Engine.activeProfile and C_AssistedCombat and C_AssistedCombat.IsAvailable() then
+            Display:Enable()
+        else
+            print("|cff00ff00[TS]|r No active profile or Assisted Combat unavailable.")
+        end
 
     elseif msg == "options" or msg == "config" then
         if TrueShot.OpenSettingsPanel then

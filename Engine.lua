@@ -127,23 +127,35 @@ function Engine:RebuildBlacklist()
     end
 end
 
+-- Reusable tables to reduce GC churn in OnUpdate
+local _queue = {}
+local _condBlacklist = {}
+local _seen = {}
+local _aoeCondition = { type = "target_count", op = ">=", value = 3 }
+
 function Engine:ComputeQueue(iconCount)
-    local queue = {}
+    wipe(_queue)
+    local queue = _queue
     local profile = self.activeProfile
     if not profile then
-        self.lastQueueMeta = { source = "ac", reason = nil, phase = nil }
+        self.lastQueueMeta.source = "ac"
+        self.lastQueueMeta.reason = nil
+        self.lastQueueMeta.phase = nil
         return queue
     end
 
     if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
-        self.lastQueueMeta = { source = "ac", reason = nil, phase = nil }
+        self.lastQueueMeta.source = "ac"
+        self.lastQueueMeta.reason = nil
+        self.lastQueueMeta.phase = nil
         return queue
     end
 
     local baseSpell = C_AssistedCombat.GetNextCastSpell()
 
     -- Build conditional blacklist for this frame
-    local condBlacklist = {}
+    wipe(_condBlacklist)
+    local condBlacklist = _condBlacklist
     for _, rule in ipairs(profile.rules) do
         if rule.type == "BLACKLIST_CONDITIONAL" and self:EvalCondition(rule.condition) then
             condBlacklist[rule.spellID] = true
@@ -202,20 +214,18 @@ function Engine:ComputeQueue(iconCount)
         phase = profile:GetPhase()
     end
     if not phase then
-        local aoeOk = self:EvalCondition({ type = "target_count", op = ">=", value = 3 })
-        if aoeOk then phase = "AoE" end
+        if self:EvalCondition(_aoeCondition) then phase = "AoE" end
     end
 
-    self.lastQueueMeta = {
-        source = source,
-        reason = reason,
-        phase = phase,
-    }
+    self.lastQueueMeta.source = source
+    self.lastQueueMeta.reason = reason
+    self.lastQueueMeta.phase = phase
 
     -- Positions 2+ from GetRotationSpells()
     local rotSpells = C_AssistedCombat.GetRotationSpells()
     if rotSpells then
-        local seen = {}
+        wipe(_seen)
+        local seen = _seen
         if pos1 then seen[pos1] = true end
 
         for _, entry in ipairs(rotSpells) do
