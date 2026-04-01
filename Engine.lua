@@ -249,10 +249,9 @@ function Engine:ActivateProfile(specID)
         end
     end
 
-    self.activeProfile = candidates[1]
-    if candidates[1].ResetState then candidates[1]:ResetState() end
-    self:RebuildBlacklist()
-    return true
+    -- No marker matched and no markerless fallback: stay inactive
+    self.activeProfile = nil
+    return false
 end
 
 function Engine:OnSpellCast(spellID)
