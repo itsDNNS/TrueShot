@@ -4,7 +4,20 @@
 local Engine = TrueShot.Engine
 
 local BA_COOLDOWN = 10
-local BW_COOLDOWN_ESTIMATE = 29
+local BW_SPELL_ID = 19574
+local C_Spell_GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
+
+local function IsBWOnCooldown()
+    if C_Spell_GetSpellCooldown then
+        local ok, cd = pcall(C_Spell_GetSpellCooldown, BW_SPELL_ID)
+        if ok and cd then
+            local duration = cd.duration or 0
+            if issecretvalue and issecretvalue(duration) then return nil end
+            return duration > 1.5  -- ignore GCD-only cooldowns
+        end
+    end
+    return nil  -- signal unavailable, caller uses fallback
+end
 
 ------------------------------------------------------------------------
 -- Profile definition
@@ -191,12 +204,17 @@ function Profile:EvalCondition(cond)
         return s.lastCastWasKC
 
     elseif cond.type == "bw_on_cd" then
+        local cdCheck = IsBWOnCooldown()
+        if cdCheck ~= nil then return cdCheck end
         if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) < BW_COOLDOWN_ESTIMATE
+        return (GetTime() - s.lastBWCast) < 60  -- conservative fallback
 
     elseif cond.type == "bw_nearly_ready" then
+        local cdCheck = IsBWOnCooldown()
+        if cdCheck == true then return false end   -- still on CD
+        if cdCheck == false then return true end   -- CD done, ready to use
         if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) >= (BW_COOLDOWN_ESTIMATE - 3)
+        return (GetTime() - s.lastBWCast) >= 55   -- conservative fallback
     end
 
     return nil -- not handled by this profile
@@ -226,7 +244,8 @@ end
 function Profile:GetPhase()
     local s = self.state
     if GetTime() < s.witheringFireUntil then return "Burst" end
-    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN_ESTIMATE - 3) then
+    local bwOnCD = IsBWOnCooldown()
+    if bwOnCD == false then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
             if ok and info and info.currentCharges then
