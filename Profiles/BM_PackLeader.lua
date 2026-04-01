@@ -26,6 +26,13 @@ local Profile = {
         { type = "BLACKLIST", spellID = 982 },    -- Revive Pet
         { type = "BLACKLIST", spellID = 147362 }, -- Counter Shot (user preference)
 
+        -- Wild Thrash: highest AoE priority (PIN when 3+ hostile nameplates)
+        {
+            type = "PIN",
+            spellID = 1264359, -- Wild Thrash
+            condition = { type = "target_count", op = ">=", value = 3 },
+        },
+
         -- Bestial Wrath: suppress when on CD or when Barbed Shot charges remain
         {
             type = "BLACKLIST_CONDITIONAL",
