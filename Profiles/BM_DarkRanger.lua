@@ -218,6 +218,24 @@ function Profile:GetDebugLines()
 end
 
 ------------------------------------------------------------------------
+-- Phase detection (for overlay display)
+------------------------------------------------------------------------
+
+function Profile:GetPhase()
+    local s = self.state
+    if GetTime() < s.witheringFireUntil then return "Burst" end
+    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN_ESTIMATE - 3) then
+        if C_Spell and C_Spell.GetSpellCharges then
+            local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
+            if ok and info and info.currentCharges and info.currentCharges > 0 then
+                return "Charge Dump"
+            end
+        end
+    end
+    return nil
+end
+
+------------------------------------------------------------------------
 -- Register
 ------------------------------------------------------------------------
 

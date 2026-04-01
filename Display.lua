@@ -55,6 +55,12 @@ reasonText:SetJustifyH("CENTER")
 reasonText:SetTextColor(0.75, 0.85, 1.0, 0.9)
 reasonText:Hide()
 
+local phaseText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+phaseText:SetPoint("BOTTOM", container, "TOP", 0, 2)
+phaseText:SetJustifyH("CENTER")
+phaseText:SetTextColor(1.0, 0.82, 0.0, 0.9)
+phaseText:Hide()
+
 ------------------------------------------------------------------------
 -- Icons
 ------------------------------------------------------------------------
@@ -285,17 +291,33 @@ function Display:UpdateQueue(queue)
         icon:Hide()
     end
 
+    local meta = Engine.lastQueueMeta
+
     -- Why overlay: show reason for position 1
-    if HunterFlow.GetOpt("showWhyOverlay") then
-        local meta = Engine.lastQueueMeta
-        if meta and meta.reason then
-            reasonText:SetText(meta.reason)
-            reasonText:Show()
-        else
-            reasonText:Hide()
-        end
+    if HunterFlow.GetOpt("showWhyOverlay") and meta and meta.reason then
+        reasonText:SetText(meta.reason)
+        reasonText:Show()
     else
         reasonText:Hide()
+    end
+
+    -- Phase indicator: show current rotation phase above overlay
+    if HunterFlow.GetOpt("showPhaseIndicator") and meta and meta.phase then
+        phaseText:SetText(meta.phase)
+        phaseText:Show()
+    else
+        phaseText:Hide()
+    end
+
+    -- Override indicator: tint primary icon border when HunterFlow overrides AC
+    if HunterFlow.GetOpt("showOverrideIndicator") and icons[1] and icons[1].border then
+        if meta and (meta.source == "pin" or meta.source == "prefer") then
+            icons[1].border:SetVertexColor(0.30, 0.85, 1.0, 1.0)
+        else
+            icons[1].border:SetVertexColor(1.0, 1.0, 1.0, 1.0)
+        end
+    elseif icons[1] and icons[1].border then
+        icons[1].border:SetVertexColor(1.0, 1.0, 1.0, 1.0)
     end
 end
 

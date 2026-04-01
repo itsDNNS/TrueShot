@@ -90,11 +90,25 @@ local function CreateSettingsPanel()
         cooldownDesc, 0, -18, "showWhyOverlay"
     )
 
+    local phaseCheck, phaseDesc = CreateCheckbox(
+        panel,
+        "Show rotation phase",
+        "Display the current rotation phase above the overlay (Burst, AoE, Charge Dump). Hidden during normal single-target rotation.",
+        whyDesc, 0, -18, "showPhaseIndicator"
+    )
+
+    local overrideCheck, overrideDesc = CreateCheckbox(
+        panel,
+        "Show AC override indicator",
+        "Tint the primary icon border blue when HunterFlow is overriding Assisted Combat. Normal border when AC passthrough is active.",
+        phaseDesc, 0, -18, "showOverrideIndicator"
+    )
+
     local diagnosticsCheck, diagnosticsDesc = CreateCheckbox(
         panel,
         "Enable probe diagnostics",
         "Keep the heavier signal probe commands off by default. Turn this on only when you explicitly want `/hf probe ...` for API validation or debugging.",
-        whyDesc, 0, -18, "enableDiagnostics"
+        overrideDesc, 0, -18, "enableDiagnostics"
     )
 
     local unlockButton = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
@@ -121,6 +135,8 @@ local function CreateSettingsPanel()
         castCheck.sync()
         cooldownCheck:SetChecked(HunterFlow.GetOpt("showCooldownSwipe"))
         whyCheck.sync()
+        phaseCheck.sync()
+        overrideCheck.sync()
         diagnosticsCheck.sync()
     end)
 
