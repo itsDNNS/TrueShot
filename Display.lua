@@ -10,6 +10,9 @@ local Display = HunterFlow.Display
 
 local SUCCESS_FLASH_DURATION = 0.35
 local MIN_COOLDOWN_SWIPE_DURATION = 2.0
+local CONTAINER_PADDING_X = 8
+local CONTAINER_PADDING_Y = 6
+local ICON_TEXTURE_INSET = 3
 
 ------------------------------------------------------------------------
 -- Container frame
@@ -29,8 +32,28 @@ end)
 container:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
 end)
+container:SetBackdrop({
+    bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+    edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+    edgeSize = 12,
+    insets = { left = 3, right = 3, top = 3, bottom = 3 },
+})
+container:SetBackdropColor(0.04, 0.04, 0.04, 0.92)
+container:SetBackdropBorderColor(0.55, 0.55, 0.55, 0.95)
+
+local content = CreateFrame("Frame", nil, container)
+content:SetPoint("TOPLEFT", container, "TOPLEFT", CONTAINER_PADDING_X, -CONTAINER_PADDING_Y)
+content:SetPoint("BOTTOMRIGHT", container, "BOTTOMRIGHT", -CONTAINER_PADDING_X, CONTAINER_PADDING_Y)
 
 Display.container = container
+
+container:SetClipsChildren(false)
+
+local reasonText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+reasonText:SetPoint("TOP", container, "BOTTOM", 0, -2)
+reasonText:SetJustifyH("CENTER")
+reasonText:SetTextColor(0.75, 0.85, 1.0, 0.9)
+reasonText:Hide()
 
 ------------------------------------------------------------------------
 -- Icons
@@ -73,17 +96,34 @@ local function CreateIcon(index)
     local spacing = HunterFlow.GetOpt("iconSpacing")
 
     local frame = CreateFrame("Frame", "HunterFlowIcon" .. index,
-        container, "BackdropTemplate")
+        content)
     frame:SetSize(size, size)
-    frame:SetPoint("LEFT", container, "LEFT",
+    frame:SetPoint("LEFT", content, "LEFT",
         (index - 1) * (size + spacing), 0)
 
+    frame.slotBackground = frame:CreateTexture(nil, "BACKGROUND")
+    frame.slotBackground:SetAllPoints()
+    frame.slotBackground:SetAtlas("UI-HUD-ActionBar-IconFrame-Background")
+
     frame.texture = frame:CreateTexture(nil, "ARTWORK")
-    frame.texture:SetAllPoints()
+    frame.texture:SetPoint("TOPLEFT", frame, "TOPLEFT", ICON_TEXTURE_INSET, -ICON_TEXTURE_INSET)
+    frame.texture:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -ICON_TEXTURE_INSET, ICON_TEXTURE_INSET)
     frame.texture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
+    if frame.CreateMaskTexture and frame.texture.AddMaskTexture and frame.slotBackground.AddMaskTexture then
+        local mask = frame:CreateMaskTexture(nil, "ARTWORK")
+        mask:SetPoint("TOPLEFT", frame, "TOPLEFT", -6, 6)
+        mask:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 6, -6)
+        mask:SetAtlas("UI-HUD-ActionBar-IconFrame-Mask", false)
+        frame.texture:AddMaskTexture(mask)
+        frame.slotBackground:AddMaskTexture(mask)
+        frame.mask = mask
+    end
+
     frame.cooldown = CreateFrame("Cooldown", nil, frame, "CooldownFrameTemplate")
-    frame.cooldown:SetAllPoints(frame)
+    frame.cooldown:ClearAllPoints()
+    frame.cooldown:SetPoint("TOPLEFT", frame, "TOPLEFT", ICON_TEXTURE_INSET, -ICON_TEXTURE_INSET)
+    frame.cooldown:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -ICON_TEXTURE_INSET, ICON_TEXTURE_INSET)
     frame.cooldown:SetHideCountdownNumbers(true)
     if frame.cooldown.SetDrawBling then frame.cooldown:SetDrawBling(false) end
     if frame.cooldown.SetDrawEdge then frame.cooldown:SetDrawEdge(false) end
@@ -121,7 +161,7 @@ local function LayoutIcons()
     for index, frame in ipairs(icons) do
         frame:SetSize(size, size)
         frame:ClearAllPoints()
-        frame:SetPoint("LEFT", container, "LEFT", (index - 1) * (size + spacing), 0)
+        frame:SetPoint("LEFT", content, "LEFT", (index - 1) * (size + spacing), 0)
         if index > 1 then
             frame:SetAlpha(0.7)
         else
@@ -141,7 +181,12 @@ function Display:UpdateContainerSize()
     local count = HunterFlow.GetOpt("iconCount")
     local size = HunterFlow.GetOpt("iconSize")
     local spacing = HunterFlow.GetOpt("iconSpacing")
-    container:SetSize(count * size + (count - 1) * spacing, size)
+    local width = count * size + (count - 1) * spacing
+    container:SetSize(
+        width + (CONTAINER_PADDING_X * 2),
+        size + (CONTAINER_PADDING_Y * 2)
+    )
+    content:SetSize(width, size)
     LayoutIcons()
 end
 
@@ -238,6 +283,19 @@ function Display:UpdateQueue(queue)
         ClearCooldown(icon)
         icon.success:Hide()
         icon:Hide()
+    end
+
+    -- Why overlay: show reason for position 1
+    if HunterFlow.GetOpt("showWhyOverlay") then
+        local meta = Engine.lastQueueMeta
+        if meta and meta.reason then
+            reasonText:SetText(meta.reason)
+            reasonText:Show()
+        else
+            reasonText:Hide()
+        end
+    else
+        reasonText:Hide()
     end
 end
 

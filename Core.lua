@@ -15,8 +15,10 @@ local DEFAULTS = {
     iconSize = 40,
     iconSpacing = 4,
     locked = false,
+    enableDiagnostics = false,
     showCooldownSwipe = true,
     showCastFeedback = true,
+    showWhyOverlay = false,
 }
 
 local optionCallbacks = {}
@@ -37,6 +39,10 @@ end
 
 function HunterFlow.RegisterOptCallback(callback)
     optionCallbacks[#optionCallbacks + 1] = callback
+end
+
+function HunterFlow.DiagnosticsEnabled()
+    return HunterFlow.GetOpt("enableDiagnostics") and true or false
 end
 
 ------------------------------------------------------------------------
@@ -183,6 +189,19 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
             print("|cffff0000[HF]|r Settings panel unavailable.")
         end
 
+    elseif msg == "diagnostics on" or msg == "diag on" then
+        HunterFlow.SetOpt("enableDiagnostics", true)
+        print("|cff00ff00[HF]|r Diagnostics enabled. `/hf probe ...` is now available.")
+
+    elseif msg == "diagnostics off" or msg == "diag off" then
+        HunterFlow.SetOpt("enableDiagnostics", false)
+        print("|cff00ff00[HF]|r Diagnostics disabled.")
+
+    elseif msg == "diagnostics" or msg == "diag" then
+        local state = HunterFlow.DiagnosticsEnabled() and "ON" or "OFF"
+        print("|cff00ff00[HF]|r Diagnostics: " .. state)
+        print("  Use `/hf diagnostics on` or `/hf diagnostics off`.")
+
     elseif msg == "debug" then
         local queue = Engine:ComputeQueue(HunterFlow.GetOpt("iconCount"))
         print("|cff00ff00[HF] Queue:|r")
@@ -201,6 +220,10 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
         print("  Burst mode: " .. tostring(Engine.burstModeActive))
 
     elseif msg:sub(1, 5) == "probe" then
+        if not HunterFlow.DiagnosticsEnabled() then
+            print("|cffffff00[HF]|r Probe diagnostics are disabled. Enable them via `/hf diagnostics on` or in `/hf options`.")
+            return
+        end
         local probeArgs = msg:sub(7) or ""
         HunterFlow.SignalProbe:HandleCommand(probeArgs)
 
@@ -213,7 +236,8 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
         print("  /hf hide    - Hide the display")
         print("  /hf show    - Show the display")
         print("  /hf debug   - Print queue and profile state")
-        print("  /hf probe   - Signal validation probes (probe help for details)")
+        print("  /hf diagnostics on|off - Enable or disable probe diagnostics")
+        print("  /hf probe   - Signal validation probes (only when diagnostics are enabled)")
 
     else
         print("|cff00ff00[HunterFlow]|r Use /hf help for commands.")

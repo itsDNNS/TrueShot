@@ -9,6 +9,7 @@ local Engine = HunterFlow.Engine
 Engine.burstModeActive = false
 Engine.combatStartTime = nil
 Engine.activeProfile = nil
+Engine.lastQueueMeta = { source = "ac", reason = nil }
 
 local function IsSecret(val)
     return issecretvalue and issecretvalue(val) or false
@@ -129,9 +130,13 @@ end
 function Engine:ComputeQueue(iconCount)
     local queue = {}
     local profile = self.activeProfile
-    if not profile then return queue end
+    if not profile then
+        self.lastQueueMeta = { source = "ac", reason = nil }
+        return queue
+    end
 
     if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
+        self.lastQueueMeta = { source = "ac", reason = nil }
         return queue
     end
 
@@ -151,10 +156,12 @@ function Engine:ComputeQueue(iconCount)
 
     -- PIN rules (highest priority, first match wins)
     local pinnedSpell = nil
+    local firedRule = nil
     for _, rule in ipairs(profile.rules) do
         if rule.type == "PIN" and self:EvalCondition(rule.condition) then
             if self:IsSpellCastable(rule.spellID) and not IsBlocked(rule.spellID) then
                 pinnedSpell = rule.spellID
+                firedRule = rule
                 break
             end
         end
@@ -167,6 +174,7 @@ function Engine:ComputeQueue(iconCount)
             if rule.type == "PREFER" and self:EvalCondition(rule.condition) then
                 if self:IsSpellCastable(rule.spellID) and not IsBlocked(rule.spellID) then
                     preferredSpell = rule.spellID
+                    firedRule = rule
                     break
                 end
             end
@@ -178,6 +186,16 @@ function Engine:ComputeQueue(iconCount)
     local pos1 = pinnedSpell or preferredSpell or baseSpell
     if pos1 and not IsBlocked(pos1) then
         queue[#queue + 1] = pos1
+    end
+
+    -- Store metadata for display features
+    if firedRule then
+        self.lastQueueMeta = {
+            source = firedRule.type == "PIN" and "pin" or "prefer",
+            reason = firedRule.reason,
+        }
+    else
+        self.lastQueueMeta = { source = "ac", reason = nil }
     end
 
     -- Positions 2+ from GetRotationSpells()
