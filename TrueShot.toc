@@ -1,9 +1,9 @@
 ## Interface: 120000
-## Title: HunterFlow
+## Title: TrueShot
 ## Notes: Hunter rotation overlay for WoW Midnight. BM profiles: Dark Ranger, Pack Leader.
 ## Author: itsDNNS
 ## Version: 0.3.0-alpha
-## SavedVariables: HunterFlowDB
+## SavedVariables: TrueShotDB
 
 Engine.lua
 Profiles/BM_DarkRanger.lua

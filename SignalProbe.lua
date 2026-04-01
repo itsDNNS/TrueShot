@@ -1,11 +1,11 @@
 -- SignalProbe: in-game validation harness for shared hunter signals
--- Run /hf probe <signal> to test API surfaces before profiles depend on them.
+-- Run /ts probe <signal> to test API surfaces before profiles depend on them.
 -- Results feed into docs/SIGNAL_VALIDATION.md classification.
 
-HunterFlow = HunterFlow or {}
-HunterFlow.SignalProbe = {}
+TrueShot = TrueShot or {}
+TrueShot.SignalProbe = {}
 
-local Probe = HunterFlow.SignalProbe
+local Probe = TrueShot.SignalProbe
 
 local BARBED_SHOT_ID = 217200  -- BM charge-based spell for default testing
 
@@ -24,7 +24,7 @@ local function SecretLabel(val)
 end
 
 local function PrintHeader(name)
-    print("|cff00ff00[HF Probe]|r Testing: |cffffcc00" .. name .. "|r")
+    print("|cff00ff00[[TS Probe]|r Testing: |cffffcc00" .. name .. "|r")
 end
 
 local function PrintResult(key, value)
@@ -218,12 +218,12 @@ function Probe:HandleCommand(args)
         local spellID = tonumber(args:match("%S+%s+(%d+)"))
         self:RunAll(spellID)
     elseif sub == "help" then
-        print("|cff00ff00[HF Probe]|r Signal validation commands:")
-        print("  /hf probe target   - Test UnitCastingInfo / UnitChannelInfo")
-        print("  /hf probe plates   - Test C_NamePlate.GetNamePlates")
-        print("  /hf probe charges [spellID]  - Test C_Spell.GetSpellCharges (default: Barbed Shot)")
-        print("  /hf probe all [spellID]      - Run all probes")
+        print("|cff00ff00[[TS Probe]|r Signal validation commands:")
+        print("  /ts probe target   - Test UnitCastingInfo / UnitChannelInfo")
+        print("  /ts probe plates   - Test C_NamePlate.GetNamePlates")
+        print("  /ts probe charges [spellID]  - Test C_Spell.GetSpellCharges (default: Barbed Shot)")
+        print("  /ts probe all [spellID]      - Run all probes")
     else
-        print("|cff00ff00[HF Probe]|r Unknown probe: " .. sub .. ". Use /hf probe help")
+        print("|cff00ff00[[TS Probe]|r Unknown probe: " .. sub .. ". Use /ts probe help")
     end
 end

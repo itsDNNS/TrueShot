@@ -1,10 +1,10 @@
-# HunterFlow
+# TrueShot
 
-`HunterFlow` is a World of Warcraft addon for Retail `Midnight` that layers a hunter-focused recommendation UI on top of Blizzard's `Assisted Combat` system.
+`TrueShot` is a World of Warcraft addon for Retail `Midnight` that layers a hunter-focused recommendation UI on top of Blizzard's `Assisted Combat` system.
 
 The addon does not try to recreate old full-state rotation engines. Instead, it uses Blizzard-provided rotation signals plus lightweight cast-event heuristics where that is still legal and reliable.
 
-`HunterFlow` is also intended to grow into a framework:
+`TrueShot` is also intended to grow into a framework:
 
 - one engine
 - multiple spec profiles
@@ -14,7 +14,7 @@ The overall project goals are documented in [Project Goals](docs/PROJECT_GOALS.m
 
 ## Status
 
-`HunterFlow` is currently an `alpha`.
+`TrueShot` is currently an `alpha`.
 
 Current implementation:
 
@@ -41,12 +41,12 @@ Planned direction:
 - Supports best-effort cooldown swipes for readable non-GCD lockouts
 - Keeps interrupt logic out of the primary queue by default
 - Supports click-through while locked
-- Registers a native `HunterFlow` category in the in-game Settings UI
+- Registers a native `TrueShot` category in the in-game Settings UI
 - Keeps signal probe diagnostics disabled by default unless you explicitly enable them
 
 ## Design Constraints
 
-`HunterFlow` is intentionally built around the current Retail API reality:
+`TrueShot` is intentionally built around the current Retail API reality:
 
 - primary combat state is heavily restricted in `Midnight`
 - cooldown values are not broadly safe to depend on
@@ -75,20 +75,20 @@ They describe the target architecture, not a claim that the current alpha is alr
 
 ## Commands
 
-- `/hf lock`
-- `/hf unlock`
-- `/hf options`
-- `/hf burst`
-- `/hf hide`
-- `/hf show`
-- `/hf debug`
-- `/hf diagnostics on|off`
-- `/hf probe ...` (only when diagnostics are enabled)
-- `/hunterflow`
+- `/ts lock`
+- `/ts unlock`
+- `/ts options`
+- `/ts burst`
+- `/ts hide`
+- `/ts show`
+- `/ts debug`
+- `/ts diagnostics on|off`
+- `/ts probe ...` (only when diagnostics are enabled)
+- `/trueshot`
 
 ## Installation
 
-1. Copy the `HunterFlow` folder into:
+1. Copy the `TrueShot` folder into:
 
 ```text
 World of Warcraft/_retail_/Interface/AddOns/
@@ -119,7 +119,7 @@ If the project eventually becomes truly class-agnostic beyond hunters, the frame
 
 ## Provenance
 
-The current `HunterFlow` codebase is an original standalone addon repository built around:
+The current `TrueShot` codebase is an original standalone addon repository built around:
 
 - Blizzard `Assisted Combat`
 - direct in-game testing on Retail `Midnight`

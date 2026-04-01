@@ -1,7 +1,7 @@
--- HunterFlow Profile: Beast Mastery / Dark Ranger (Spec 253)
+-- TrueShot Profile: Beast Mastery / Dark Ranger (Spec 253)
 -- Cast-event state machine for Black Arrow, Bestial Wrath, Wailing Arrow
 
-local Engine = HunterFlow.Engine
+local Engine = TrueShot.Engine
 
 local BA_COOLDOWN = 10
 local BW_COOLDOWN_ESTIMATE = 29
