@@ -20,11 +20,11 @@ Each signal is tested in-game using `/hf probe` and classified per the scheme be
 | Check | Result | Notes |
 |-------|--------|-------|
 | API | `UnitCastingInfo("target")` / `UnitChannelInfo("target")` | |
-| pcall safe | untested | |
-| issecretvalue | untested | |
-| Value accuracy | untested | Needs casting mob targeted |
-| Instance behavior | untested | Needs dungeon/raid boss test |
-| **Classification** | **UNKNOWN** | Pending in-game test with casting target |
+| pcall safe | yes | No errors |
+| issecretvalue | no (not secret) | Returns full cast tuple with readable values |
+| Value accuracy | accurate | Returns spell name, spell ID, start/end timestamps, cast GUID. Tested: Zungenschlag (350575), two consecutive casts correctly distinguished. |
+| Instance behavior | untested | Open world validated; dungeon/raid TBD |
+| **Classification** | **VALIDATED** | Non-secret in open world. Returns complete cast info including spell name, ID, timing, and interruptible flag. Instance behavior not yet confirmed. |
 
 Engine condition: `target_casting` (Engine.lua)
 Fallback if unavailable: condition returns false, interrupt hints do not fire.
@@ -92,7 +92,8 @@ Record results from each context where tested:
 
 - [x] Open world (solo, 0 targets) - plates: 0, charges: 2/2
 - [x] Open world (5 visible nameplates, ~2 in combat) - plates: 5
-- [ ] Dungeon (trash pack) - expected more accurate plate count
-- [ ] Dungeon (boss - casting check) - needed for target_casting validation
-- [ ] Different nameplate CVar settings - needed for plate count sensitivity
-- [ ] Charge consumption test - needed for recharge timing fields
+- [x] Open world (caster mob, Zungenschlag 350575) - target_casting: full tuple returned, not secret
+- [ ] Dungeon (trash pack) - deferred: expected more accurate plate count
+- [ ] Dungeon (boss casting) - deferred: instance secret behavior TBD
+- [ ] Different nameplate CVar settings - deferred: implementation note, not classification change
+- [ ] Charge consumption test - deferred: recharge timing fields not needed for charge-count rules
