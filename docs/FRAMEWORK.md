@@ -1,12 +1,12 @@
 # Framework Model
 
-`HunterFlow` should evolve into a framework with three layers:
+`HunterFlow` is now structured around three layers:
 
 1. `Engine`
 2. `Profile`
 3. `Presentation`
 
-The current addon still ships as a single-file alpha, but this is the target architecture rather than a description of the current internal file layout.
+The current addon already uses this split in code, but the framework is still early and intentionally narrow in runtime scope.
 
 ## 1. Engine
 
@@ -60,7 +60,7 @@ Presentation owns:
 - icon count
 - positioning
 - click-through behavior
-- cooldown/GCD sweep rendering
+- future cooldown/GCD sweep rendering when a lightweight legal implementation exists
 - text overlays / keybind overlays
 
 Presentation must not own combat logic.
@@ -142,10 +142,10 @@ The engine should never fail hard when a profile-specific heuristic cannot run.
 
 ## Current Reality
 
-Today, `HunterFlow` is still earlier than this target architecture:
+Today, `HunterFlow` is still earlier than the eventual broader framework goal:
 
-- one live `Core.lua`
-- one active BM profile path
-- state tracked in engine-level locals rather than profile objects
+- one shared engine
+- one shipped BM profile path
+- one compact display implementation
 
-That is acceptable for the alpha. The purpose of this document is to define where the code should move next.
+That is acceptable for the alpha. The purpose of this document is to define how the code should keep expanding without losing its lightweight character.

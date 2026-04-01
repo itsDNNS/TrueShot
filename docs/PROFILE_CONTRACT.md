@@ -44,12 +44,14 @@ If hero/talent context cannot be proven safely, the profile must:
 
 ## State Hooks
 
-Profiles should eventually expose hooks like:
+Profiles should expose hooks like:
 
 ```lua
 profile:ResetState()
-profile:OnPlayerSpellCast(spellID, now)
-profile:IsRuleConditionTrue(condition, now)
+profile:OnSpellCast(spellID)
+profile:OnCombatEnd()
+profile:EvalCondition(condition)
+profile:GetDebugLines()
 ```
 
 This keeps spec-specific logic out of the generic queue engine.
@@ -81,7 +83,8 @@ Before adding a new class/spec profile:
 3. List all spells that must be cast-tracked.
 4. List every reset/proc source you can actually observe.
 5. Define fallback behavior for missing signals.
-6. Test the profile with `/debug` output before claiming correctness.
+6. Ask whether each rule is worth its runtime cost.
+7. Test the profile with `/hf debug` output before claiming correctness.
 
 ## BM / Dark Ranger Example
 
@@ -106,15 +109,22 @@ Rule examples:
 - `PREFER Wailing Arrow` near end of `Withering Fire`
 - conditionally suppress repeated `Kill Command`
 
-## Current Alpha Gap
+## Current State
 
-The current alpha implementation does **not** fully satisfy this contract yet:
+The current addon now has:
 
-- the BM profile is still hard-coded in `Core.lua`
-- state still lives in engine-level locals
-- hero-path-specific heuristics are documented as tested behavior, not as a separately gated profile module
+- a generic `Engine.lua`
+- a presentation layer in `Display.lua`
+- a real BM profile module in `Profiles/BM_DarkRanger.lua`
 
-That gap is intentional technical debt, not hidden architecture. This document defines the contract future extractions should satisfy.
+That means this contract is no longer hypothetical.
+It describes the actual direction new profile modules should follow.
+
+What is still intentionally narrow:
+
+- only one shipped hunter profile exists today
+- hero-path specificity is still encoded in that one BM profile module
+- future specs still need their own validated signal surface before implementation
 
 ## Public Rule Language
 

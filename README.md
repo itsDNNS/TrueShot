@@ -65,6 +65,7 @@ The framework direction is documented here:
 - [API Constraints](docs/API_CONSTRAINTS.md)
 - [Framework Model](docs/FRAMEWORK.md)
 - [Profile Contract](docs/PROFILE_CONTRACT.md)
+- [Profile Authoring Guide](docs/PROFILE_AUTHORING.md)
 
 These docs are meant to capture the hard-won findings from the `Midnight` API changes so future class/spec integrations do not repeat the same mistakes.
 They describe the target architecture, not a claim that the current alpha is already fully modularized.
