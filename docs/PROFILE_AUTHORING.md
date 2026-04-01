@@ -1,6 +1,6 @@
 # Profile Authoring Guide
 
-This guide turns the current `TrueShot` framework into a repeatable authoring workflow for new hunter profiles and hero-path variants.
+This guide turns the current `TrueShot` framework into a repeatable authoring workflow for new profiles and hero-path variants.
 
 Use this together with:
 
@@ -19,7 +19,7 @@ The goal is to ship a profile that is:
 
 ## Quick Start
 
-1. Copy [`HunterProfileTemplate.lua`](templates/HunterProfileTemplate.lua).
+1. Copy [`ProfileTemplate.lua`](templates/ProfileTemplate.lua).
 2. Rename it for the target profile, for example `Profiles/MM_Sentinel.lua`.
 3. Write down the guide or priority source you are translating.
 4. Classify each desired mechanic as:
@@ -164,7 +164,7 @@ TrueShot/
 
 Authoring template:
 
-- [`HunterProfileTemplate.lua`](templates/HunterProfileTemplate.lua)
+- [`ProfileTemplate.lua`](templates/ProfileTemplate.lua)
 
 Only add a new profile to `TrueShot.toc` when the module is ready to register and be loaded by the addon.
 

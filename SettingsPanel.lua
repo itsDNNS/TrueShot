@@ -53,7 +53,7 @@ local function CreateSettingsPanel()
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
     subtitle:SetPoint("RIGHT", panel, "RIGHT", -16, 0)
     subtitle:SetJustifyH("LEFT")
-    subtitle:SetText("Midnight-compatible hunter overlay on top of Blizzard Assisted Combat. Keep the panel lean: settings here should stay practical and low-overhead.")
+    subtitle:SetText("Midnight-compatible rotation overlay on top of Blizzard Assisted Combat. Keep the panel lean: settings here should stay practical and low-overhead.")
 
     local lockCheck, lockDesc = CreateCheckbox(
         panel,
