@@ -163,6 +163,10 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
         end
         print("  Burst mode: " .. tostring(Engine.burstModeActive))
 
+    elseif msg:sub(1, 5) == "probe" then
+        local probeArgs = msg:sub(7) or ""
+        HunterFlow.SignalProbe:HandleCommand(probeArgs)
+
     elseif msg == "help" then
         print("|cff00ff00[HunterFlow]|r Commands:")
         print("  /hf lock    - Lock frame (click-through)")
@@ -171,6 +175,7 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
         print("  /hf hide    - Hide the display")
         print("  /hf show    - Show the display")
         print("  /hf debug   - Print queue and profile state")
+        print("  /hf probe   - Signal validation probes (probe help for details)")
 
     else
         print("|cff00ff00[HunterFlow]|r Use /hf help for commands.")
