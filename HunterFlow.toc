@@ -8,4 +8,5 @@
 Engine.lua
 Profiles/BM_DarkRanger.lua
 Display.lua
+SignalProbe.lua
 Core.lua

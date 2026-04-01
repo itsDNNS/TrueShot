@@ -10,6 +10,10 @@ Engine.burstModeActive = false
 Engine.combatStartTime = nil
 Engine.activeProfile = nil
 
+local function IsSecret(val)
+    return issecretvalue and issecretvalue(val) or false
+end
+
 ------------------------------------------------------------------------
 -- Condition evaluator (generic conditions only)
 ------------------------------------------------------------------------
@@ -26,14 +30,19 @@ function Engine:EvalCondition(cond)
 
     elseif cond.type == "target_casting" then
         if UnitExists("target") then
-            local casting = UnitCastingInfo("target")
-            local channeling = UnitChannelInfo("target")
-            return (casting ~= nil) or (channeling ~= nil)
+            local ok1, casting = pcall(UnitCastingInfo, "target")
+            local ok2, channeling = pcall(UnitChannelInfo, "target")
+            if not ok1 and not ok2 then return false end
+            if IsSecret(casting) or IsSecret(channeling) then return false end
+            return (ok1 and casting ~= nil) or (ok2 and channeling ~= nil)
         end
         return false
 
     elseif cond.type == "target_count" then
-        local plates = C_NamePlate.GetNamePlates() or {}
+        if not C_NamePlate or not C_NamePlate.GetNamePlates then return false end
+        local ok, plates = pcall(C_NamePlate.GetNamePlates)
+        if not ok or not plates then return false end
+        if IsSecret(plates) then return false end
         local count = 0
         for _, plate in ipairs(plates) do
             local unit = plate.namePlateUnitToken
@@ -43,6 +52,21 @@ function Engine:EvalCondition(cond)
         end
         if cond.op == ">=" then return count >= cond.value end
         if cond.op == ">" then return count > cond.value end
+        return false
+
+    elseif cond.type == "spell_charges" then
+        if C_Spell and C_Spell.GetSpellCharges then
+            local ok, info = pcall(C_Spell.GetSpellCharges, cond.spellID)
+            if ok and info then
+                local charges = info.currentCharges
+                if IsSecret(charges) then return false end
+                if cond.op == ">=" then return charges >= cond.value end
+                if cond.op == ">"  then return charges >  cond.value end
+                if cond.op == "==" then return charges == cond.value end
+                if cond.op == "<"  then return charges <  cond.value end
+                if cond.op == "<=" then return charges <= cond.value end
+            end
+        end
         return false
 
     elseif cond.type == "burst_mode" then
