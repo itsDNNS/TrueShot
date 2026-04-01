@@ -1,6 +1,6 @@
 # API Constraints
 
-This document is the source of truth for what `HunterFlow` may and may not rely on under Retail `Midnight`.
+This document is the source of truth for what `TrueShot` may and may not rely on under Retail `Midnight`.
 
 The core rule is simple:
 
@@ -10,7 +10,7 @@ The core rule is simple:
 
 ## Guiding Principle
 
-`HunterFlow` should only build heuristics on top of data that is either:
+`TrueShot` should only build heuristics on top of data that is either:
 
 - directly readable
 - observable through player-owned events

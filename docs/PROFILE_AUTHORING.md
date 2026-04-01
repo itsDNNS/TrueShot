@@ -1,6 +1,6 @@
 # Profile Authoring Guide
 
-This guide turns the current `HunterFlow` framework into a repeatable authoring workflow for new hunter profiles and hero-path variants.
+This guide turns the current `TrueShot` framework into a repeatable authoring workflow for new hunter profiles and hero-path variants.
 
 Use this together with:
 
@@ -29,8 +29,8 @@ The goal is to ship a profile that is:
    - `unknown`
 5. Keep only the mechanics that survive the API and runtime-cost checks.
 6. Implement state and rules for those mechanics.
-7. Add the profile file to `HunterFlow.toc` only when it is ready to register.
-8. Test with `/hf debug` before claiming the profile is usable.
+7. Add the profile file to `TrueShot.toc` only when it is ready to register.
+8. Test with `/ts debug` before claiming the profile is usable.
 
 ## Rule Classification
 
@@ -64,7 +64,7 @@ Every heuristic must document:
 
 ### `impossible`
 
-Use this when the mechanic depends on state that `HunterFlow` should not fake.
+Use this when the mechanic depends on state that `TrueShot` should not fake.
 
 Examples:
 
@@ -154,7 +154,7 @@ Examples:
 Current pattern for a real profile file:
 
 ```text
-HunterFlow/
+TrueShot/
   Engine.lua
   Display.lua
   Core.lua
@@ -166,7 +166,7 @@ Authoring template:
 
 - [`HunterProfileTemplate.lua`](templates/HunterProfileTemplate.lua)
 
-Only add a new profile to `HunterFlow.toc` when the module is ready to register and be loaded by the addon.
+Only add a new profile to `TrueShot.toc` when the module is ready to register and be loaded by the addon.
 
 ## Review Standard
 

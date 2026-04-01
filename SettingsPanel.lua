@@ -1,6 +1,6 @@
--- HunterFlow Settings: native Game Options category for lightweight addon config
+-- TrueShot Settings: native Game Options category for lightweight addon config
 
-HunterFlow = HunterFlow or {}
+TrueShot = TrueShot or {}
 
 local settingsCategory
 
@@ -11,7 +11,7 @@ local function OpenRegisteredCategory()
     elseif settingsCategory.ID then
         Settings.OpenToCategory(settingsCategory.ID)
     else
-        Settings.OpenToCategory("HunterFlow")
+        Settings.OpenToCategory("TrueShot")
     end
 end
 
@@ -27,27 +27,27 @@ local function CreateCheckbox(parent, label, description, relativeTo, x, y, key)
     desc:SetText(description)
 
     check:SetScript("OnClick", function(self)
-        HunterFlow.SetOpt(key, self:GetChecked() and true or false)
-        if key == "locked" and HunterFlow.Display and HunterFlow.Display.SetClickThrough then
-            HunterFlow.Display:SetClickThrough(self:GetChecked())
+        TrueShot.SetOpt(key, self:GetChecked() and true or false)
+        if key == "locked" and TrueShot.Display and TrueShot.Display.SetClickThrough then
+            TrueShot.Display:SetClickThrough(self:GetChecked())
         end
     end)
 
     check.sync = function()
-        check:SetChecked(HunterFlow.GetOpt(key))
+        check:SetChecked(TrueShot.GetOpt(key))
     end
 
     return check, desc
 end
 
 local function CreateSettingsPanel()
-    local panel = CreateFrame("Frame", "HunterFlowSettingsPanel", UIParent)
-    panel.name = "HunterFlow"
+    local panel = CreateFrame("Frame", "TrueShotSettingsPanel", UIParent)
+    panel.name = "TrueShot"
     panel:SetSize(640, 480)
 
     local title = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightLarge")
     title:SetPoint("TOPLEFT", panel, "TOPLEFT", 16, -16)
-    title:SetText("HunterFlow")
+    title:SetText("TrueShot")
 
     local subtitle = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     subtitle:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
@@ -80,7 +80,7 @@ local function CreateSettingsPanel()
     cooldownDesc:SetText("Use readable spell cooldown data when available and suppress obvious GCD-only churn. This is visual feedback, not a promise of exact Midnight cooldown truth.")
 
     cooldownCheck:SetScript("OnClick", function(self)
-        HunterFlow.SetOpt("showCooldownSwipe", self:GetChecked() and true or false)
+        TrueShot.SetOpt("showCooldownSwipe", self:GetChecked() and true or false)
     end)
 
     local whyCheck, whyDesc = CreateCheckbox(
@@ -100,14 +100,14 @@ local function CreateSettingsPanel()
     local overrideCheck, overrideDesc = CreateCheckbox(
         panel,
         "Show AC override indicator",
-        "Tint the primary icon border blue when HunterFlow is overriding Assisted Combat. Normal border when AC passthrough is active.",
+        "Tint the primary icon border blue when TrueShot is overriding Assisted Combat. Normal border when AC passthrough is active.",
         phaseDesc, 0, -18, "showOverrideIndicator"
     )
 
     local diagnosticsCheck, diagnosticsDesc = CreateCheckbox(
         panel,
         "Enable probe diagnostics",
-        "Keep the heavier signal probe commands off by default. Turn this on only when you explicitly want `/hf probe ...` for API validation or debugging.",
+        "Keep the heavier signal probe commands off by default. Turn this on only when you explicitly want `/ts probe ...` for API validation or debugging.",
         overrideDesc, 0, -18, "enableDiagnostics"
     )
 
@@ -116,10 +116,10 @@ local function CreateSettingsPanel()
     unlockButton:SetPoint("TOPLEFT", diagnosticsDesc, "BOTTOMLEFT", 0, -18)
     unlockButton:SetText("Unlock And Recenter")
     unlockButton:SetScript("OnClick", function()
-        HunterFlow.SetOpt("locked", false)
-        if HunterFlow.Display and HunterFlow.Display.ResetPosition then
-            HunterFlow.Display:ResetPosition()
-            HunterFlow.Display:SetClickThrough(false)
+        TrueShot.SetOpt("locked", false)
+        if TrueShot.Display and TrueShot.Display.ResetPosition then
+            TrueShot.Display:ResetPosition()
+            TrueShot.Display:SetClickThrough(false)
         end
         lockCheck:SetChecked(false)
     end)
@@ -128,12 +128,12 @@ local function CreateSettingsPanel()
     hint:SetPoint("TOPLEFT", unlockButton, "BOTTOMLEFT", 0, -10)
     hint:SetPoint("RIGHT", panel, "RIGHT", -24, 0)
     hint:SetJustifyH("LEFT")
-    hint:SetText("For profile logic, keep using `/hf debug`. Probe commands stay behind the diagnostics toggle above, or `/hf diagnostics on`, so they only run when you explicitly need them.")
+    hint:SetText("For profile logic, keep using `/ts debug`. Probe commands stay behind the diagnostics toggle above, or `/ts diagnostics on`, so they only run when you explicitly need them.")
 
     panel:SetScript("OnShow", function()
         lockCheck.sync()
         castCheck.sync()
-        cooldownCheck:SetChecked(HunterFlow.GetOpt("showCooldownSwipe"))
+        cooldownCheck:SetChecked(TrueShot.GetOpt("showCooldownSwipe"))
         whyCheck.sync()
         phaseCheck.sync()
         overrideCheck.sync()
@@ -149,11 +149,11 @@ local function RegisterSettingsPanel()
     end
 
     local panel = CreateSettingsPanel()
-    settingsCategory = Settings.RegisterCanvasLayoutCategory(panel, "HunterFlow")
+    settingsCategory = Settings.RegisterCanvasLayoutCategory(panel, "TrueShot")
     Settings.RegisterAddOnCategory(settingsCategory)
 end
 
-function HunterFlow.OpenSettingsPanel()
+function TrueShot.OpenSettingsPanel()
     RegisterSettingsPanel()
     OpenRegisteredCategory()
 end

@@ -1,6 +1,6 @@
 # Profile Contract
 
-This document defines how a class/spec module should plug into `HunterFlow` once the alpha is split into explicit profile modules.
+This document defines how a class/spec module should plug into `TrueShot` once the alpha is split into explicit profile modules.
 
 A profile is a data-and-state package, not a second engine.
 
@@ -89,7 +89,7 @@ Before adding a new class/spec profile:
 4. List every reset/proc source you can actually observe.
 5. Define fallback behavior for missing signals.
 6. Ask whether each rule is worth its runtime cost.
-7. Test the profile with `/hf debug` output before claiming correctness.
+7. Test the profile with `/ts debug` output before claiming correctness.
 
 ## BM / Dark Ranger Example
 

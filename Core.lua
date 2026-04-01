@@ -1,4 +1,4 @@
--- HunterFlow: AssistedCombat rotation overlay with cast-tracked state
+-- TrueShot: AssistedCombat rotation overlay with cast-tracked state
 -- Copyright (C) 2026 itsDNNS
 -- Licensed under GPL-3.0-or-later. See LICENSE.
 
@@ -6,9 +6,9 @@
 -- Global namespace & saved variables
 ------------------------------------------------------------------------
 
-HunterFlow = HunterFlow or {}
+TrueShot = TrueShot or {}
 
-HunterFlowDB = HunterFlowDB or {}
+TrueShotDB = TrueShotDB or {}
 
 local DEFAULTS = {
     iconCount = 2,
@@ -25,26 +25,26 @@ local DEFAULTS = {
 
 local optionCallbacks = {}
 
-function HunterFlow.GetOpt(key)
-    if HunterFlowDB[key] ~= nil then return HunterFlowDB[key] end
+function TrueShot.GetOpt(key)
+    if TrueShotDB[key] ~= nil then return TrueShotDB[key] end
     return DEFAULTS[key]
 end
 
-function HunterFlow.SetOpt(key, value)
-    local prev = HunterFlow.GetOpt(key)
+function TrueShot.SetOpt(key, value)
+    local prev = TrueShot.GetOpt(key)
     if prev == value then return end
-    HunterFlowDB[key] = value
+    TrueShotDB[key] = value
     for _, callback in ipairs(optionCallbacks) do
         callback(key, value, prev)
     end
 end
 
-function HunterFlow.RegisterOptCallback(callback)
+function TrueShot.RegisterOptCallback(callback)
     optionCallbacks[#optionCallbacks + 1] = callback
 end
 
-function HunterFlow.DiagnosticsEnabled()
-    return HunterFlow.GetOpt("enableDiagnostics") and true or false
+function TrueShot.DiagnosticsEnabled()
+    return TrueShot.GetOpt("enableDiagnostics") and true or false
 end
 
 ------------------------------------------------------------------------
@@ -61,8 +61,8 @@ local function GetActiveSpecID()
 end
 
 local function TryActivate()
-    Engine = HunterFlow.Engine
-    Display = HunterFlow.Display
+    Engine = TrueShot.Engine
+    Display = TrueShot.Display
 
     local specID = GetActiveSpecID()
     if not specID then
@@ -98,21 +98,21 @@ eventFrame:RegisterEvent("SPELLS_CHANGED")
 eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
-    Engine = HunterFlow.Engine
-    Display = HunterFlow.Display
+    Engine = TrueShot.Engine
+    Display = TrueShot.Display
 
     if event == "PLAYER_ENTERING_WORLD" then
         if TryActivate() then
             local profile = Engine.activeProfile
             local name = profile and profile.id or "unknown"
-            print("|cff00ff00[HunterFlow]|r loaded. Profile: " .. name)
-            print("|cffaaaaaa  /hf lock|unlock|options|burst|help|r")
+            print("|cff00ff00[TrueShot]|r loaded. Profile: " .. name)
+            print("|cffaaaaaa  /ts lock|unlock|options|burst|help|r")
         else
             local specID = GetActiveSpecID()
-            if not HunterFlow.Profiles[specID or 0] then
-                print("|cffaaaaaa[HunterFlow]|r No profile for current spec. Addon inactive.")
+            if not TrueShot.Profiles[specID or 0] then
+                print("|cffaaaaaa[TrueShot]|r No profile for current spec. Addon inactive.")
             else
-                print("|cffff0000[HunterFlow]|r Assisted Combat not available.")
+                print("|cffff0000[TrueShot]|r Assisted Combat not available.")
             end
         end
 
@@ -143,7 +143,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         local curr = Engine.activeProfile
         if curr and curr ~= prev then
             local name = curr.id or "unknown"
-            print("|cff00ff00[HunterFlow]|r Profile switched: " .. name)
+            print("|cff00ff00[TrueShot]|r Profile switched: " .. name)
         end
     end
 end)
@@ -152,61 +152,61 @@ end)
 -- Slash commands
 ------------------------------------------------------------------------
 
-SLASH_HUNTERFLOW1 = "/hf"
-SLASH_HUNTERFLOW2 = "/hunterflow"
-SlashCmdList["HUNTERFLOW"] = function(msg)
-    Engine = HunterFlow.Engine
-    Display = HunterFlow.Display
+SLASH_TRUESHOT1 = "/ts"
+SLASH_TRUESHOT2 = "/trueshot"
+SlashCmdList["TRUESHOT"] = function(msg)
+    Engine = TrueShot.Engine
+    Display = TrueShot.Display
     msg = msg:lower():trim()
 
     if msg == "lock" then
-        HunterFlow.SetOpt("locked", true)
+        TrueShot.SetOpt("locked", true)
         Display:SetClickThrough(true)
-        print("|cff00ff00[HF]|r Frame locked (click-through).")
+        print("|cff00ff00[TS]|r Frame locked (click-through).")
 
     elseif msg == "unlock" then
-        HunterFlow.SetOpt("locked", false)
+        TrueShot.SetOpt("locked", false)
         Display:SetClickThrough(false)
-        print("|cff00ff00[HF]|r Frame unlocked. Drag to reposition.")
+        print("|cff00ff00[TS]|r Frame unlocked. Drag to reposition.")
 
     elseif msg == "burst" then
         Engine.burstModeActive = not Engine.burstModeActive
         if Engine.burstModeActive then
-            print("|cff00ff00[HF]|r Burst mode ON")
+            print("|cff00ff00[TS]|r Burst mode ON")
         else
-            print("|cff00ff00[HF]|r Burst mode OFF")
+            print("|cff00ff00[TS]|r Burst mode OFF")
         end
 
     elseif msg == "hide" then
         Display:Disable()
-        print("|cff00ff00[HF]|r Hidden. /hf show to restore.")
+        print("|cff00ff00[TS]|r Hidden. /ts show to restore.")
 
     elseif msg == "show" then
         Display:Enable()
 
     elseif msg == "options" or msg == "config" then
-        if HunterFlow.OpenSettingsPanel then
-            HunterFlow.OpenSettingsPanel()
+        if TrueShot.OpenSettingsPanel then
+            TrueShot.OpenSettingsPanel()
         else
-            print("|cffff0000[HF]|r Settings panel unavailable.")
+            print("|cffff0000[TS]|r Settings panel unavailable.")
         end
 
     elseif msg == "diagnostics on" or msg == "diag on" then
-        HunterFlow.SetOpt("enableDiagnostics", true)
-        print("|cff00ff00[HF]|r Diagnostics enabled. `/hf probe ...` is now available.")
+        TrueShot.SetOpt("enableDiagnostics", true)
+        print("|cff00ff00[TS]|r Diagnostics enabled. `/ts probe ...` is now available.")
 
     elseif msg == "diagnostics off" or msg == "diag off" then
-        HunterFlow.SetOpt("enableDiagnostics", false)
-        print("|cff00ff00[HF]|r Diagnostics disabled.")
+        TrueShot.SetOpt("enableDiagnostics", false)
+        print("|cff00ff00[TS]|r Diagnostics disabled.")
 
     elseif msg == "diagnostics" or msg == "diag" then
-        local state = HunterFlow.DiagnosticsEnabled() and "ON" or "OFF"
-        print("|cff00ff00[HF]|r Diagnostics: " .. state)
-        print("  Use `/hf diagnostics on` or `/hf diagnostics off`.")
+        local state = TrueShot.DiagnosticsEnabled() and "ON" or "OFF"
+        print("|cff00ff00[TS]|r Diagnostics: " .. state)
+        print("  Use `/ts diagnostics on` or `/ts diagnostics off`.")
 
     elseif msg == "debug" then
-        local queue = Engine:ComputeQueue(HunterFlow.GetOpt("iconCount"))
-        print("|cff00ff00[HF] Queue:|r")
+        local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
+        print("|cff00ff00[TS] Queue:|r")
         for i, id in ipairs(queue) do
             local name = C_Spell.GetSpellName(id) or "?"
             local castable = Engine:IsSpellCastable(id) and "usable" or "not usable"
@@ -214,7 +214,7 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
         end
         local profile = Engine.activeProfile
         if profile and profile.GetDebugLines then
-            print("|cff00ff00[HF] Profile State:|r")
+            print("|cff00ff00[TS] Profile State:|r")
             for _, line in ipairs(profile:GetDebugLines()) do
                 print(line)
             end
@@ -222,26 +222,26 @@ SlashCmdList["HUNTERFLOW"] = function(msg)
         print("  Burst mode: " .. tostring(Engine.burstModeActive))
 
     elseif msg:sub(1, 5) == "probe" then
-        if not HunterFlow.DiagnosticsEnabled() then
-            print("|cffffff00[HF]|r Probe diagnostics are disabled. Enable them via `/hf diagnostics on` or in `/hf options`.")
+        if not TrueShot.DiagnosticsEnabled() then
+            print("|cffffff00[TS]|r Probe diagnostics are disabled. Enable them via `/ts diagnostics on` or in `/ts options`.")
             return
         end
         local probeArgs = msg:sub(7) or ""
-        HunterFlow.SignalProbe:HandleCommand(probeArgs)
+        TrueShot.SignalProbe:HandleCommand(probeArgs)
 
     elseif msg == "help" then
-        print("|cff00ff00[HunterFlow]|r Commands:")
-        print("  /hf lock    - Lock frame (click-through)")
-        print("  /hf unlock  - Unlock frame for dragging")
-        print("  /hf options - Open the HunterFlow settings panel")
-        print("  /hf burst   - Toggle burst mode")
-        print("  /hf hide    - Hide the display")
-        print("  /hf show    - Show the display")
-        print("  /hf debug   - Print queue and profile state")
-        print("  /hf diagnostics on|off - Enable or disable probe diagnostics")
-        print("  /hf probe   - Signal validation probes (only when diagnostics are enabled)")
+        print("|cff00ff00[TrueShot]|r Commands:")
+        print("  /ts lock    - Lock frame (click-through)")
+        print("  /ts unlock  - Unlock frame for dragging")
+        print("  /ts options - Open the TrueShot settings panel")
+        print("  /ts burst   - Toggle burst mode")
+        print("  /ts hide    - Hide the display")
+        print("  /ts show    - Show the display")
+        print("  /ts debug   - Print queue and profile state")
+        print("  /ts diagnostics on|off - Enable or disable probe diagnostics")
+        print("  /ts probe   - Signal validation probes (only when diagnostics are enabled)")
 
     else
-        print("|cff00ff00[HunterFlow]|r Use /hf help for commands.")
+        print("|cff00ff00[TrueShot]|r Use /ts help for commands.")
     end
 end
