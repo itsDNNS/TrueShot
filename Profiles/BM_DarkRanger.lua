@@ -85,6 +85,13 @@ local Profile = {
             },
         },
 
+        -- Wild Thrash: AoE preference (below BA/WF rules, best-effort via PARTIAL nameplate count)
+        {
+            type = "PREFER",
+            spellID = 1264359, -- Wild Thrash
+            condition = { type = "target_count", op = ">=", value = 3 },
+        },
+
         -- Nature's Ally: never Kill Command twice in a row
         {
             type = "BLACKLIST_CONDITIONAL",
