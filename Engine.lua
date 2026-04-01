@@ -131,12 +131,12 @@ function Engine:ComputeQueue(iconCount)
     local queue = {}
     local profile = self.activeProfile
     if not profile then
-        self.lastQueueMeta = { source = "ac", reason = nil }
+        self.lastQueueMeta = { source = "ac", reason = nil, phase = nil }
         return queue
     end
 
     if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
-        self.lastQueueMeta = { source = "ac", reason = nil }
+        self.lastQueueMeta = { source = "ac", reason = nil, phase = nil }
         return queue
     end
 
@@ -189,14 +189,28 @@ function Engine:ComputeQueue(iconCount)
     end
 
     -- Store metadata for display features
+    local source = "ac"
+    local reason = nil
     if firedRule then
-        self.lastQueueMeta = {
-            source = firedRule.type == "PIN" and "pin" or "prefer",
-            reason = firedRule.reason,
-        }
-    else
-        self.lastQueueMeta = { source = "ac", reason = nil }
+        source = firedRule.type == "PIN" and "pin" or "prefer"
+        reason = firedRule.reason
     end
+
+    -- Phase detection: profile-specific first, then engine-level AoE
+    local phase = nil
+    if profile.GetPhase then
+        phase = profile:GetPhase()
+    end
+    if not phase then
+        local aoeOk = self:EvalCondition({ type = "target_count", op = ">=", value = 3 })
+        if aoeOk then phase = "AoE" end
+    end
+
+    self.lastQueueMeta = {
+        source = source,
+        reason = reason,
+        phase = phase,
+    }
 
     -- Positions 2+ from GetRotationSpells()
     local rotSpells = C_AssistedCombat.GetRotationSpells()

@@ -19,6 +19,8 @@ local DEFAULTS = {
     showCooldownSwipe = true,
     showCastFeedback = true,
     showWhyOverlay = false,
+    showPhaseIndicator = false,
+    showOverrideIndicator = false,
 }
 
 local optionCallbacks = {}
