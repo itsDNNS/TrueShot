@@ -29,11 +29,26 @@ local Profile = {
         { type = "BLACKLIST", spellID = 982 },    -- Revive Pet
         { type = "BLACKLIST", spellID = 147362 }, -- Counter Shot (user preference)
 
-        -- Bestial Wrath: suppress when recently cast
+        -- Bestial Wrath: suppress when on CD or when Barbed Shot charges remain
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 19574,
-            condition = { type = "bw_on_cd" },
+            condition = {
+                type = "or",
+                left  = { type = "bw_on_cd" },
+                right = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
+            },
+        },
+
+        -- Barbed Shot charge dump: spend charges when BW is nearly ready
+        {
+            type = "PREFER",
+            spellID = 217200, -- Barbed Shot
+            condition = {
+                type = "and",
+                left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
+                right = { type = "bw_nearly_ready" },
+            },
         },
 
         -- During Withering Fire: Black Arrow is highest DPS priority
@@ -47,14 +62,14 @@ local Profile = {
             },
         },
 
-        -- Wailing Arrow near end of Withering Fire
+        -- Wailing Arrow near end of Withering Fire (~7s left on BW = ~3s left on WF)
         {
             type = "PREFER",
             spellID = 392060, -- Wailing Arrow
             condition = {
                 type = "and",
                 left  = { type = "wa_available" },
-                right = { type = "wf_ending", seconds = 4 },
+                right = { type = "wf_ending", seconds = 3 },
             },
         },
 
@@ -163,6 +178,10 @@ function Profile:EvalCondition(cond)
     elseif cond.type == "bw_on_cd" then
         if s.lastBWCast == 0 then return false end
         return (GetTime() - s.lastBWCast) < BW_COOLDOWN_ESTIMATE
+
+    elseif cond.type == "bw_nearly_ready" then
+        if s.lastBWCast == 0 then return true end
+        return (GetTime() - s.lastBWCast) >= (BW_COOLDOWN_ESTIMATE - 3)
     end
 
     return nil -- not handled by this profile
