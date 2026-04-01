@@ -21,6 +21,7 @@ local DEFAULTS = {
     showWhyOverlay = false,
     showPhaseIndicator = false,
     showOverrideIndicator = false,
+    hidden = false,
 }
 
 local optionCallbacks = {}
@@ -80,7 +81,9 @@ local function TryActivate()
         return false
     end
 
-    Display:Enable()
+    if not TrueShot.GetOpt("hidden") then
+        Display:Enable()
+    end
     return true
 end
 
@@ -127,7 +130,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PLAYER_REGEN_DISABLED" then
         Engine.combatStartTime = GetTime()
-        if Engine.activeProfile and not Display.container:IsShown() then
+        if Engine.activeProfile and not Display.container:IsShown() and not TrueShot.GetOpt("hidden") then
             Display:Enable()
         end
 
@@ -196,10 +199,12 @@ SlashCmdList["TRUESHOT"] = function(msg)
         end
 
     elseif msg == "hide" then
+        TrueShot.SetOpt("hidden", true)
         Display:Disable()
         print("|cff00ff00[TS]|r Hidden. /ts show to restore.")
 
     elseif msg == "show" then
+        TrueShot.SetOpt("hidden", false)
         Display:Enable()
 
     elseif msg == "options" or msg == "config" then

@@ -157,6 +157,8 @@ end
 
 function Profile:OnCombatEnd()
     self.state.lastCastWasKC = false
+    self.state.witheringFireUntil = 0
+    self.state.lastBWCast = 0
 end
 
 ------------------------------------------------------------------------
