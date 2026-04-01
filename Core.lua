@@ -145,6 +145,24 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             local name = curr.id or "unknown"
             print("|cff00ff00[TrueShot]|r Profile switched: " .. name)
         end
+        -- Force immediate display refresh after any spell/talent change
+        if Display and Display.container and Display.container:IsShown() then
+            local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
+            Display:UpdateQueue(queue)
+        end
+        -- Delayed re-check: spellbook may still be updating
+        C_Timer.After(0.5, function()
+            local prevDelayed = Engine.activeProfile
+            TryActivate()
+            local currDelayed = Engine.activeProfile
+            if currDelayed and currDelayed ~= prevDelayed then
+                print("|cff00ff00[TrueShot]|r Profile switched: " .. (currDelayed.id or "unknown"))
+            end
+            if Display and Display.container and Display.container:IsShown() then
+                local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
+                Display:UpdateQueue(queue)
+            end
+        end)
     end
 end)
 
