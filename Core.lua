@@ -68,6 +68,7 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
 eventFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 
 eventFrame:SetScript("OnEvent", function(self, event, ...)
@@ -105,8 +106,15 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         Engine.combatStartTime = nil
         Engine:OnCombatEnd()
 
-    elseif event == "PLAYER_SPECIALIZATION_CHANGED" then
+    elseif event == "PLAYER_SPECIALIZATION_CHANGED"
+        or event == "PLAYER_TALENT_UPDATE" then
+        local prev = Engine.activeProfile
         TryActivate()
+        local curr = Engine.activeProfile
+        if curr and curr ~= prev then
+            local name = curr.id or "unknown"
+            print("|cff00ff00[HunterFlow]|r Profile switched: " .. name)
+        end
     end
 end)
 
