@@ -13,6 +13,7 @@ local BW_COOLDOWN_ESTIMATE = 29
 local Profile = {
     id = "Hunter.BM.DarkRanger",
     specID = 253,
+    markerSpell = 466930, -- Black Arrow (Dark Ranger exclusive)
 
     state = {
         blackArrowReady = true,
