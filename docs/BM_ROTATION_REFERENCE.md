@@ -1,4 +1,4 @@
-# BM Dark Ranger Rotation Reference
+# BM Rotation Reference
 
 Source: Icy Veins BM Hunter PvE Guide (Midnight Season 1)
 
@@ -83,7 +83,7 @@ Cast at ~7s remaining on BW (= ~3s remaining on WF). Procs Black Arrow, follow u
 ### Bestial Wrath Prep
 Always spend all Barbed Shot charges before casting BW. BW CD is 90s base, reduced by Barbed Shot casts (variable).
 
-## Not Modeled (Intentional)
+## Dark Ranger: Not Modeled (Intentional)
 
 | Element | Reason |
 |---------|--------|
@@ -92,3 +92,76 @@ Always spend all Barbed Shot charges before casting BW. BW CD is 90s base, reduc
 | Opener sequence | AC handles initial spells, state machine needs cast events |
 | Trinket usage | External to rotation logic |
 | Hunter's Mark | Passive/manual, not a queue decision |
+
+---
+
+# BM Pack Leader Rotation Reference
+
+Source: Icy Veins BM Hunter PvE Guide (Midnight Season 1)
+
+This document is the authoritative reference for rule ordering in `Profiles/BM_PackLeader.lua`.
+
+## Single-Target Rotation
+
+| # | Icy Veins Priority | TrueShot Implementation | Mechanism |
+|---|-------------------|------------------------|-----------|
+| 1 | Activate BW (all BS charges spent first) | BW blacklisted when on CD or charges > 0 | BLACKLIST_CONDITIONAL |
+| 2 | KC on CD with Nature's Ally | KC anti-repeat blacklist (prevents double KC). AC handles KC timing. | BLACKLIST_CONDITIONAL |
+| 3 | Barbed Shot on CD | AC passthrough | -- |
+| 4 | Cobra Shot filler | AC passthrough | -- |
+
+### Actual Rule Order in Profile (PIN/PREFER only)
+
+1. PIN Wild Thrash "AoE 3+" (target_count >= 3) -- only in AoE
+2. PREFER BS "Charge Dump" (charges > 0 AND bw_nearly_ready)
+
+### Single-Target Opener
+
+1. Barbed Shot (all charges)
+2. Bestial Wrath
+3. Kill Command
+4. Barbed Shot
+5. Kill Command
+6. Continue normal rotation.
+
+## AoE Rotation
+
+| # | Icy Veins Priority | TrueShot Implementation | Mechanism |
+|---|-------------------|------------------------|-----------|
+| 1 | Wild Thrash on CD | PIN when target_count >= 3 | PIN (highest prio) |
+| 2 | Activate BW (Stampede on next KC) | BW blacklist (same as ST) | BLACKLIST_CONDITIONAL |
+| 3 | KC on CD | KC anti-repeat blacklist (prevents double KC). AC handles KC timing. | BLACKLIST_CONDITIONAL |
+| 4 | Cobra Shot if Hogstrider up (2-3 targets) | Not modeled (Hogstrider buff is secret) | -- |
+| 5 | Barbed Shot on CD | AC passthrough | -- |
+| 6 | Cobra Shot filler / Wild Thrash spam | AC passthrough | -- |
+
+### AoE Opener
+
+1. Barbed Shot (unless pet already in melee)
+2. Wild Thrash
+3. Bestial Wrath
+4. Kill Command
+5. Barbed Shot
+6. Kill Command
+7. Continue rotation.
+
+## Key Mechanics
+
+### Nature's Ally
+Same as Dark Ranger. Never cast KC twice in a row. Always weave other abilities between KC casts.
+
+### Stampede
+First KC after BW spawns a Stampede in a ~40yd line. Positional -- aim the line through targets. Not trackable by TrueShot.
+
+### Bestial Wrath Prep
+Same as Dark Ranger. Spend all Barbed Shot charges before casting BW.
+
+## Pack Leader: Not Modeled (Intentional)
+
+| Element | Reason |
+|---------|--------|
+| Hogstrider buff (AoE Cobra Shot) | Buff tracking is secret |
+| Stampede aiming | Positional hint, not a queue decision |
+| Focus management | Focus is secret |
+| Opener sequence | AC handles initial spells |
+| Trinket usage | External to rotation logic |
