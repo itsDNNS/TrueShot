@@ -81,23 +81,30 @@ end
 local keybindCache = {}
 local keybindCacheDirty = true
 
+local function GetKeyForSlot(slot)
+    local btn = (slot - 1) % 12 + 1
+    local bar = math.ceil(slot / 12)
+    local key = GetBindingKey("ACTIONBUTTON" .. btn)
+    if not key and bar >= 2 and bar <= 6 then
+        key = GetBindingKey("MULTIACTIONBAR" .. (bar - 1) .. "BUTTON" .. btn)
+    end
+    return key
+end
+
 local function RebuildKeybindCache()
     wipe(keybindCache)
     for slot = 1, 120 do
         local actionType, id = GetActionInfo(slot)
-        if actionType == "spell" and id then
-            local key = GetBindingKey("ACTIONBUTTON" .. ((slot - 1) % 12 + 1))
-            if not key then
-                local bar = math.ceil(slot / 12)
-                local btn = (slot - 1) % 12 + 1
-                if bar == 1 then
-                    key = GetBindingKey("ACTIONBUTTON" .. btn)
-                elseif bar <= 6 then
-                    key = GetBindingKey("MULTIACTIONBAR" .. (bar - 1) .. "BUTTON" .. btn)
-                end
-            end
-            if key and not keybindCache[id] then
-                keybindCache[id] = key
+        local spellID = nil
+
+        if (actionType == "spell" or actionType == "macro") and id then
+            spellID = id
+        end
+
+        if spellID then
+            local key = GetKeyForSlot(slot)
+            if key and not keybindCache[spellID] then
+                keybindCache[spellID] = key
             end
         end
     end
