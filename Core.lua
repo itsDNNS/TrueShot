@@ -10,14 +10,6 @@ TrueShot = TrueShot or {}
 
 TrueShotDB = TrueShotDB or {}
 
--- One-time migration from legacy HunterFlowDB
-if HunterFlowDB and next(HunterFlowDB) and not next(TrueShotDB) then
-    for k, v in pairs(HunterFlowDB) do
-        TrueShotDB[k] = v
-    end
-    HunterFlowDB = nil
-end
-
 local DEFAULTS = {
     iconCount = 2,
     iconSize = 40,
