@@ -6,6 +6,9 @@ local C_Spell_GetSpellTexture = C_Spell and C_Spell.GetSpellTexture
 local C_Spell_GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
 local C_Spell_GetSpellCharges = C_Spell and C_Spell.GetSpellCharges
 
+local Masque = _G.LibStub and _G.LibStub("Masque", true)
+local MasqueGroup = Masque and Masque:Group("TrueShot", "Queue")
+
 TrueShot.Display = {}
 local Display = TrueShot.Display
 
@@ -67,6 +70,17 @@ phaseText:Hide()
 ------------------------------------------------------------------------
 
 local icons = {}
+
+if MasqueGroup then
+    MasqueGroup:RegisterCallback(function()
+        for _, icon in ipairs(icons) do
+            if icon.keybind then
+                icon.keybind:ClearAllPoints()
+                icon.keybind:SetPoint("TOPRIGHT", icon, "TOPRIGHT", -2, -2)
+            end
+        end
+    end)
+end
 
 local function ClearCooldown(icon)
     if not icon or not icon.cooldown then return end
@@ -211,6 +225,20 @@ local function CreateIcon(index)
     fadeIn:SetDuration(0.4)
     fadeIn:SetOrder(1)
     fadeIn:SetSmoothing("IN_OUT")
+
+    if MasqueGroup then
+        -- Masque owns background and border; hide native versions
+        frame.slotBackground:Hide()
+        frame.border:Hide()
+
+        MasqueGroup:AddButton(frame, {
+            Icon = frame.texture,
+            Cooldown = frame.cooldown,
+            ChargeCooldown = frame.chargeCooldown,
+            HotKey = frame.keybind,
+            Normal = frame.border,
+        }, "Frame")
+    end
 
     if index > 1 then
         frame:SetAlpha(0.7)
