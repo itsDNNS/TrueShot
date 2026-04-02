@@ -28,6 +28,9 @@ local DEFAULTS = {
     overlayScale = 1.0,
     overlayOpacity = 1.0,
     hidden = false,
+    firstIconScale = 1.3,
+    orientation = "LEFT",
+    showBackdrop = true,
 }
 
 local optionCallbacks = {}

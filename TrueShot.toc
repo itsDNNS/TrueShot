@@ -4,6 +4,7 @@
 ## Author: itsDNNS
 ## Version: 0.4.2-alpha
 ## SavedVariables: TrueShotDB
+## OptionalDeps: Masque
 
 Engine.lua
 Profiles/BM_DarkRanger.lua
