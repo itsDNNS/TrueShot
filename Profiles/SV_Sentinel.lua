@@ -25,6 +25,7 @@ local SPELLS = {
 
 local Profile = {
     id = "Hunter.SV.Sentinel",
+    displayName = "SV Sentinel",
     specID = 255,
     markerSpell = SPELLS.MoonlightChakram,
 

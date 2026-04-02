@@ -27,6 +27,7 @@ local SPELLS = {
 
 local Profile = {
     id = "Hunter.MM.Sentinel",
+    displayName = "MM Sentinel",
     specID = 254,
     -- No markerSpell: this profile serves as the MM fallback
     -- when Dark Ranger's Black Arrow marker does not match

@@ -29,6 +29,7 @@ local SPELLS = {
 
 local Profile = {
     id = "Hunter.MM.DarkRanger",
+    displayName = "MM Dark Ranger",
     specID = 254,
     markerSpell = SPELLS.BlackArrow,
 
