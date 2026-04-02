@@ -1,4 +1,4 @@
-# TrueShot
+# <img src="icon.svg" width="48" height="48" align="center" style="margin-right: 10px;"> TrueShot
 
 `TrueShot` is a World of Warcraft addon for Retail `Midnight` that layers a hunter-focused recommendation UI on top of Blizzard's `Assisted Combat` system.
 

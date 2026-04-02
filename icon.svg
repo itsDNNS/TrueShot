@@ -1,0 +1,33 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Circular Tech Reticle (Midnight Purple) -->
+  <circle cx="256" cy="256" r="220" stroke="#A330C9" stroke-width="2" opacity="0.4"/>
+  <circle cx="256" cy="256" r="190" stroke="#A330C9" stroke-width="1" opacity="0.2"/>
+  
+  <!-- UI Accents (Precision Gold) -->
+  <path d="M256 30V80M256 432V482M30 256H80M432 256H482" stroke="#FFD100" stroke-width="6" stroke-linecap="round"/>
+  <path d="M100 100L140 140M372 372L412 412M412 100L372 140M140 372L100 412" stroke="#FFD100" stroke-width="2" opacity="0.5"/>
+
+  <!-- The TrueShot Arrow (Dynamic Angle) -->
+  <g transform="translate(256, 256) rotate(-45)">
+    <!-- Main Shaft -->
+    <rect x="-4" y="-180" width="8" height="360" fill="url(#arrow_shaft_grad)"/>
+    
+    <!-- Sharp Arrowhead (Hunter Green) -->
+    <path d="M0 -220L25 -160H-25L0 -220Z" fill="#ABD473" stroke="#2B502B" stroke-width="2"/>
+    
+    <!-- Modern Fletching/Vanes -->
+    <path d="M0 100L40 180H-40L0 100Z" fill="#4E6B2C" opacity="0.9"/>
+    <path d="M0 130L30 190H-30L0 130Z" fill="#2B502B"/>
+  </g>
+  
+  <!-- Impact / Focus Point -->
+  <rect x="246" y="246" width="20" height="20" stroke="#FFD100" stroke-width="2" transform="rotate(45 256 256)"/>
+  <circle cx="256" cy="256" r="5" fill="#FFD100"/>
+
+  <defs>
+    <linearGradient id="arrow_shaft_grad" x1="0" y1="-180" x2="0" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ABD473"/>
+      <stop offset="1" stop-color="#2B502B"/>
+    </linearGradient>
+  </defs>
+</svg>
