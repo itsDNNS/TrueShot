@@ -122,8 +122,14 @@ function Profile:EvalCondition(cond)
                 end
                 if info.currentCharges >= 2 then return true end
                 if info.currentCharges == 1 then
+                    local startTime = info.cooldownStartTime
+                    local duration = info.cooldownDuration
+                    if not startTime or not duration then return false end
+                    if issecretvalue and (issecretvalue(startTime) or issecretvalue(duration)) then
+                        return false
+                    end
                     local threshold = cond.seconds or 5
-                    local timeToRecharge = (info.cooldownStartTime + info.cooldownDuration) - now
+                    local timeToRecharge = (startTime + duration) - now
                     return timeToRecharge <= threshold
                 end
                 return false

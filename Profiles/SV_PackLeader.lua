@@ -46,7 +46,7 @@ local Profile = {
             reason = "Stampede",
             condition = {
                 type = "and",
-                left  = { type = "takedown_just_cast", seconds = 2 },
+                left  = { type = "takedown_active" },
                 right = { type = "not", inner = { type = "kc_cast_in_takedown" } },
             },
         },
