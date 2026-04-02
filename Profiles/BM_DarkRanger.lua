@@ -12,6 +12,7 @@ local BW_COOLDOWN = 30
 
 local Profile = {
     id = "Hunter.BM.DarkRanger",
+    displayName = "BM Dark Ranger",
     specID = 253,
     markerSpell = 466930, -- Black Arrow (Dark Ranger exclusive)
 

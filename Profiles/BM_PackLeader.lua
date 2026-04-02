@@ -11,6 +11,7 @@ local BW_COOLDOWN = 30
 
 local Profile = {
     id = "Hunter.BM.PackLeader",
+    displayName = "BM Pack Leader",
     specID = 253,
     -- No markerSpell: this profile serves as the BM fallback
     -- when Dark Ranger's Black Arrow marker does not match

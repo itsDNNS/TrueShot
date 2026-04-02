@@ -140,8 +140,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         if TryActivate() then
             local profile = Engine.activeProfile
-            local name = profile and profile.id or "unknown"
-            print("|cff00ff00[TrueShot]|r " .. name .. " | /ts help")
+            local name = profile and (profile.displayName or profile.id) or "unknown"
+            print("|cff00ff00[TrueShot]|r Ready to hunt. |cffffff00" .. name .. "|r active. Type |cffffff00/ts help|r for commands.")
         else
             local specID = GetActiveSpecID()
             if not TrueShot.Profiles[specID or 0] then
@@ -186,7 +186,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         TryActivate()
         local curr = Engine.activeProfile
         if curr and curr ~= prev then
-            local name = curr.id or "unknown"
+            local name = curr.displayName or curr.id or "unknown"
             print("|cff00ff00[TrueShot]|r Profile switched: " .. name)
         end
         ReconcileVisibility()
@@ -201,7 +201,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             TryActivate()
             local currDelayed = Engine.activeProfile
             if currDelayed and currDelayed ~= prevDelayed then
-                print("|cff00ff00[TrueShot]|r Profile switched: " .. (currDelayed.id or "unknown"))
+                print("|cff00ff00[TrueShot]|r Profile switched: " .. (currDelayed.displayName or currDelayed.id or "unknown"))
             end
             ReconcileVisibility()
             if Display and Display.container and Display.container:IsShown() then

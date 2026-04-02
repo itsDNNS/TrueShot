@@ -26,6 +26,7 @@ local SPELLS = {
 
 local Profile = {
     id = "Hunter.SV.PackLeader",
+    displayName = "SV Pack Leader",
     specID = 255,
     -- No markerSpell: this profile serves as the SV fallback
 
