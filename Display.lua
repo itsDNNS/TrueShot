@@ -695,17 +695,22 @@ function Display:Enable()
         -- Hidden early exit: skip all work if container not visible
         if not container:IsShown() then return end
 
-        -- Tiered rate: combat = 10Hz, idle = 2Hz
+        -- Tiered rate:
+        --   Combat or has target: 10Hz (time-based conditions active)
+        --   Idle (no combat, no target): 2Hz, skip if clean
         local inCombat = UnitAffectingCombat("player")
         local hasTarget = UnitExists("target")
-        local interval = (inCombat or hasTarget) and COMBAT_INTERVAL or IDLE_INTERVAL
+        local active = inCombat or hasTarget
 
+        local interval = active and COMBAT_INTERVAL or IDLE_INTERVAL
         if timeSinceUpdate < interval then return end
         timeSinceUpdate = 0
 
-        -- Dirty flag: skip ComputeQueue if nothing changed (idle optimization)
-        -- Always compute in combat (AC recommendations change continuously)
-        if not inCombat and not queueDirty then return end
+        -- Dirty gate: only applies to true idle (no combat, no target).
+        -- When active, always recompute because ComputeQueue depends on
+        -- time-based inputs (AC output, profile timers, charges, nameplates)
+        -- that change without events.
+        if not active and not queueDirty then return end
 
         local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
         Display:UpdateQueue(queue)

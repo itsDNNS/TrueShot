@@ -236,6 +236,7 @@ SlashCmdList["TRUESHOT"] = function(msg)
 
     elseif msg == "burst" then
         Engine.burstModeActive = not Engine.burstModeActive
+        if Display and Display.MarkDirty then Display:MarkDirty() end
         if Engine.burstModeActive then
             print("|cff00ff00[TS]|r Burst mode ON")
         else
