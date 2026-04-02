@@ -671,24 +671,24 @@ end
 -- Update throttle (tiered: combat 10Hz, idle 2Hz, hidden 0Hz)
 ------------------------------------------------------------------------
 
-local COMBAT_INTERVAL = 0.1      -- 10 Hz in combat
-local IDLE_INTERVAL = 0.5        -- 2 Hz out of combat with no target
+local COMBAT_INTERVAL = 0.1      -- 10 Hz in combat or hostile target
+local IDLE_INTERVAL = 0.5        -- 2 Hz out of combat with no hostile target
 local timeSinceUpdate = 0
-local queueDirty = true           -- force first update
 
-function Display:MarkDirty()
-    queueDirty = true
-end
+-- No-op: callers mark dirty for future event-driven optimization.
+-- Currently unused because tiered rates handle all cases.
+function Display:MarkDirty() end
 
 local UnitAffectingCombat = UnitAffectingCombat
 local UnitExists = UnitExists
+local UnitCanAttack = UnitCanAttack
 
 function Display:Enable()
     self:ApplyOptions()
     EnsureIcons()
     container:EnableMouse(not TrueShot.GetOpt("locked"))
     container:Show()
-    queueDirty = true
+    timeSinceUpdate = COMBAT_INTERVAL  -- force immediate first update
     container:SetScript("OnUpdate", function(_, elapsed)
         timeSinceUpdate = timeSinceUpdate + elapsed
 
@@ -696,25 +696,17 @@ function Display:Enable()
         if not container:IsShown() then return end
 
         -- Tiered rate:
-        --   Combat or has target: 10Hz (time-based conditions active)
-        --   Idle (no combat, no target): 2Hz, skip if clean
+        --   Combat or hostile target: 10Hz (time-based conditions active)
+        --   Idle (no combat, no hostile target): 2Hz
         local inCombat = UnitAffectingCombat("player")
-        local hasTarget = UnitExists("target")
-        local active = inCombat or hasTarget
+        local hasHostile = UnitExists("target") and UnitCanAttack("player", "target")
+        local interval = (inCombat or hasHostile) and COMBAT_INTERVAL or IDLE_INTERVAL
 
-        local interval = active and COMBAT_INTERVAL or IDLE_INTERVAL
         if timeSinceUpdate < interval then return end
         timeSinceUpdate = 0
 
-        -- Dirty gate: only applies to true idle (no combat, no target).
-        -- When active, always recompute because ComputeQueue depends on
-        -- time-based inputs (AC output, profile timers, charges, nameplates)
-        -- that change without events.
-        if not active and not queueDirty then return end
-
         local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
         Display:UpdateQueue(queue)
-        queueDirty = false
     end)
 end
 
@@ -734,6 +726,7 @@ end
 
 TrueShot.RegisterOptCallback(function(key)
     Display:ApplyOptions()
+    Display:MarkDirty()
     if key == "combatOnly" or key == "enemyTargetOnly" or key == "hidden" then
         -- Defer to Core.lua's ReconcileVisibility via a zero-delay timer
         -- (Core.lua defines ReconcileVisibility after Display loads)
