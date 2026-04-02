@@ -26,7 +26,9 @@ Masque skin (ElvUI, Serenity, Shadow, etc.).
 
 **How**:
 - Soft-depend on Masque via `## OptionalDeps: Masque` in TOC
-- On load, check `LibStub("Masque", true)` and store reference
+- On load, guard with `_G.LibStub and LibStub("Masque", true)` (TrueShot
+  does not embed LibStub; if neither Masque nor any other addon loads it,
+  the global will be nil)
 - Register group `"TrueShot"` via `Masque:Group("TrueShot", "Queue")`
 - In `CreateIcon()`, call `MasqueGroup:AddButton(button, layerMap)` with:
   - `Icon` = button.texture
@@ -34,7 +36,10 @@ Masque skin (ElvUI, Serenity, Shadow, etc.).
   - `ChargeCooldown` = button.chargeCooldown (new, see section 5)
   - `HotKey` = button.keybind
   - `Normal` = button.border (atlas: UI-HUD-ActionBar-IconFrame)
-- When Masque is absent, current atlas-based rendering is used unchanged
+- **Layer ownership**: When Masque is active, hide native `slotBackground`
+  and `border` atlas textures (Masque replaces them). The `success` overlay,
+  `mask`, and `keybind` remain under TrueShot's control. When Masque is
+  absent, all native textures render as before (zero visual change).
 - Masque callback re-applies keybind anchor after skin changes
 
 **Files**: Display.lua, TrueShot.toc
@@ -49,7 +54,13 @@ hierarchy, matching JAC's `firstIconScale` behavior.
 - `LayoutIcons()` applies scale to position 1 frame via `:SetScale()`
 - Positions 2+ remain at scale 1.0
 - Existing alpha reduction (0.7) for positions 2+ is preserved
-- Container size calculation accounts for scaled first icon
+- **Layout math**: Icon 2 must be anchored relative to icon 1's effective
+  (scaled) edge, not the unscaled size. Effective first icon width =
+  `iconSize * firstIconScale`. Position 2 offset =
+  `iconSize * firstIconScale + spacing`. Remaining icons use normal
+  `iconSize + spacing` offsets.
+- Container size calculation uses the effective first icon width
+- For vertical orientations, the same logic applies to height instead
 
 **Files**: Display.lua, SettingsPanel.lua, Core.lua (default)
 
@@ -66,6 +77,10 @@ hierarchy, matching JAC's `firstIconScale` behavior.
   - `UP`: anchor BOTTOM, positive Y offset
   - `DOWN`: anchor TOP, negative Y offset
 - Container dimensions swap width/height for vertical orientations
+- Reason/phase labels reposition: horizontal = below/above container,
+  vertical = to the right of the container
+- First-icon-scale applies along the orientation axis (width for
+  horizontal, height for vertical)
 - Settings panel exposes dropdown selector
 
 **Files**: Display.lua, SettingsPanel.lua, Core.lua (default)
@@ -76,11 +91,20 @@ hierarchy, matching JAC's `firstIconScale` behavior.
 glow effect when TrueShot's PIN or PREFER overrides Blizzard AC.
 
 **How**:
-- Use `ActionButton_ShowOverlayGlow` / `ActionButton_HideOverlayGlow`
-  (Blizzard built-in, no external dependency)
+- Use a custom `AnimationGroup` with alpha-pulsing border overlay texture.
+  Blizzard's 12.0 action-bar alert system uses
+  `ActionButtonSpellAlertManager` which is template-based and not designed
+  for non-ActionButton frames. The legacy `ActionButton_ShowOverlayGlow`
+  global may not exist in 12.0. A lightweight custom glow avoids this
+  dependency entirely.
+- Implementation: create an overlay texture per icon (atlas
+  `UI-HUD-ActionBar-IconFrame-Mouseover`), tint it to the desired color,
+  animate alpha between 0.3 and 0.9 with a 0.8s cycle via AnimationGroup.
+  Show/hide per frame based on `lastQueueMeta.source`.
 - Applied to position 1 icon when `lastQueueMeta.source` is `"pin"` or
   `"prefer"`
-- Glow color: cyan for PIN (strong override), soft blue for PREFER
+- Glow color: cyan `(0.0, 0.8, 1.0)` for PIN, soft blue `(0.4, 0.6, 1.0)`
+  for PREFER
 - Glow removed when source reverts to `"ac"`
 - Existing reason text below the queue is preserved as complementary info
 
@@ -96,10 +120,17 @@ Shot has 2 charges). JAC shows this as a separate cooldown swipe.
 - In `UpdateQueue()`, for the displayed spell: call
   `C_Spell.GetSpellCharges(spellID)`
 - If charges exist and currentCharges < maxCharges:
+  - Set charge swipe via `chargeCooldown:SetCooldown(chargeStart,
+    chargeDuration, chargeModRate)` (chargeModRate from GetSpellCharges,
+    defaults to 1.0 if absent)
   - Show charge swipe with reduced opacity (0.4) to distinguish from
     primary cooldown
   - Display charge count via small font string (bottom-right corner)
 - If charges are full or spell has no charges: hide chargeCooldown frame
+- Charge cooldown respects the existing `showCooldownSwipe` setting; when
+  that option is off, both primary and charge swipes are hidden
+- Layering: chargeCooldown renders beneath the primary cooldown frame so
+  GCD swipes visually overlay charge regen
 - Registered with Masque layer map (section 1)
 
 **Files**: Display.lua
@@ -111,8 +142,11 @@ floating-icons look.
 
 **How**:
 - New saved variable `showBackdrop` (boolean, default true)
-- When false: `container:SetBackdrop(nil)` or alpha 0
-- When true: current backdrop (tooltip-style dark background with border)
+- When false: `container:SetBackdropColor(0, 0, 0, 0)` and
+  `container:SetBackdropBorderColor(0, 0, 0, 0)` (alpha-only, does not
+  cascade to child frames; icons and text remain fully visible)
+- When true: restore original colors `(0.04, 0.04, 0.04, 0.92)` and
+  `(0.55, 0.55, 0.55, 0.95)`
 - Toggled via checkbox in settings panel
 
 **Files**: Display.lua, SettingsPanel.lua, Core.lua (default)
@@ -124,7 +158,8 @@ floating-icons look.
 - Health bar display
 - Grab tab drag handle (current full-frame drag is sufficient)
 - Proc glow detection (would require buff tracking beyond current signals)
-- LibCustomGlow dependency (Blizzard's built-in glow is sufficient)
+- LibCustomGlow / ActionButton_ShowOverlayGlow (12.0 API uncertain; custom
+  AnimationGroup glow is simpler and dependency-free)
 
 ## Files Affected
 
