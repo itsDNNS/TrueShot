@@ -675,9 +675,10 @@ local COMBAT_INTERVAL = 0.1      -- 10 Hz in combat or hostile target
 local IDLE_INTERVAL = 0.5        -- 2 Hz out of combat with no hostile target
 local timeSinceUpdate = 0
 
--- No-op: callers mark dirty for future event-driven optimization.
--- Currently unused because tiered rates handle all cases.
-function Display:MarkDirty() end
+-- Force next tick to fire immediately by resetting the throttle timer.
+function Display:MarkDirty()
+    timeSinceUpdate = IDLE_INTERVAL
+end
 
 local UnitAffectingCombat = UnitAffectingCombat
 local UnitExists = UnitExists
