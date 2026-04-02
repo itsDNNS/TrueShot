@@ -195,12 +195,54 @@ local function CreateIcon(index)
     frame.border:SetAllPoints()
     frame.border:SetAtlas("UI-HUD-ActionBar-IconFrame")
 
+    -- Override glow: pulsing overlay when TrueShot overrides AC
+    frame.glow = frame:CreateTexture(nil, "OVERLAY", nil, 2)
+    frame.glow:SetAllPoints()
+    frame.glow:SetAtlas("UI-HUD-ActionBar-IconFrame-Mouseover")
+    frame.glow:SetBlendMode("ADD")
+    frame.glow:SetAlpha(0)
+    frame.glow:Hide()
+
+    frame.glowAnim = frame.glow:CreateAnimationGroup()
+    frame.glowAnim:SetLooping("BOUNCE")
+    local fadeIn = frame.glowAnim:CreateAnimation("Alpha")
+    fadeIn:SetFromAlpha(0.3)
+    fadeIn:SetToAlpha(0.9)
+    fadeIn:SetDuration(0.4)
+    fadeIn:SetOrder(1)
+    fadeIn:SetSmoothing("IN_OUT")
+
     if index > 1 then
         frame:SetAlpha(0.7)
     end
 
     frame:Hide()
     return frame
+end
+
+local GLOW_COLORS = {
+    pin    = { 0.0, 0.8, 1.0 },
+    prefer = { 0.4, 0.6, 1.0 },
+}
+
+local function HideGlow(icon)
+    if not icon or not icon.glow then return end
+    icon.glowAnim:Stop()
+    icon.glow:Hide()
+end
+
+local function ShowGlow(icon, source)
+    if not icon or not icon.glow then return end
+    local color = GLOW_COLORS[source]
+    if not color then
+        HideGlow(icon)
+        return
+    end
+    icon.glow:SetVertexColor(color[1], color[2], color[3], 1.0)
+    icon.glow:Show()
+    if not icon.glowAnim:IsPlaying() then
+        icon.glowAnim:Play()
+    end
 end
 
 local ORIENTATION_CONFIG = {
@@ -494,15 +536,18 @@ function Display:UpdateQueue(queue)
         phaseText:Hide()
     end
 
-    -- Override indicator: tint primary icon border when TrueShot overrides AC
-    if TrueShot.GetOpt("showOverrideIndicator") and icons[1] and icons[1].border then
-        if meta and (meta.source == "pin" or meta.source == "prefer") then
-            icons[1].border:SetVertexColor(0.30, 0.85, 1.0, 1.0)
-        else
-            icons[1].border:SetVertexColor(1.0, 1.0, 1.0, 1.0)
-        end
-    elseif icons[1] and icons[1].border then
+    -- Override glow: pulse position 1 when TrueShot overrides AC
+    if icons[1] and icons[1].border then
         icons[1].border:SetVertexColor(1.0, 1.0, 1.0, 1.0)
+    end
+    if TrueShot.GetOpt("showOverrideIndicator") and icons[1] then
+        if meta and (meta.source == "pin" or meta.source == "prefer") then
+            ShowGlow(icons[1], meta.source)
+        else
+            HideGlow(icons[1])
+        end
+    elseif icons[1] then
+        HideGlow(icons[1])
     end
 end
 
