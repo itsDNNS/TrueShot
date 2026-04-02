@@ -5,7 +5,7 @@
 ## Version: @project-version@
 ## X-Category: Combat
 ## X-Website: https://github.com/itsDNNS/TrueShot
-## X-Curse-Project-ID:
+## X-Curse-Project-ID: 1502734
 ## X-Wago-ID:
 ## SavedVariables: TrueShotDB
 ## OptionalDeps: Masque
