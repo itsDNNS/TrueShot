@@ -4,91 +4,50 @@
 
 # TrueShot
 
-`TrueShot` is a World of Warcraft addon for Retail `Midnight` that layers a hunter-focused recommendation UI on top of Blizzard's `Assisted Combat` system.
+A World of Warcraft addon for Retail Midnight that layers hunter-focused rotation fixes on top of Blizzard's Assisted Combat system.
 
-The addon does not try to recreate old full-state rotation engines. Instead, it uses Blizzard-provided rotation signals plus lightweight cast-event heuristics where that is still legal and reliable.
+Blizzard's built-in rotation helper handles ~95% of ability prioritization correctly. TrueShot identifies the remaining cases where it doesn't and overrides them with cast-event-tracked heuristics.
 
-`TrueShot` is also intended to grow into a framework:
+## Supported Specs
 
-- one engine
-- multiple spec profiles
-- explicit rules about what Blizzard's API still allows and what it does not
+All three Hunter specializations are supported with hero-path-specific profiles:
 
-The overall project goals are documented in [Project Goals](docs/PROJECT_GOALS.md).
+| Spec | Hero Path | Key Overrides |
+|------|-----------|---------------|
+| **Beast Mastery** | Dark Ranger | Black Arrow timing during Withering Fire, Wailing Arrow sequencing, Barbed Shot charge dump |
+| **Beast Mastery** | Pack Leader | Bestial Wrath management, Nature's Ally KC weaving, Wild Thrash AoE |
+| **Marksmanship** | Dark Ranger | Trueshot opener sequence (TS > BA > WA > BA), Volley/Trueshot anti-overlap, Withering Fire BA priority |
+| **Marksmanship** | Sentinel | Post-Rapid Fire Trueshot gating, Volley anti-overlap, Moonlight Chakram filler timing |
+| **Survival** | Pack Leader | Stampede KC sequencing after Takedown, WFB charge cap prevention, Takedown burst window |
+| **Survival** | Sentinel | WFB charge management with near-cap cutoff, Moonlight Chakram timing, Takedown burst window |
 
-## Status
+Hero path auto-detection works via `IsPlayerSpell` markers and switches automatically on talent changes.
 
-`TrueShot` is currently an `alpha`.
+## How It Works
 
-Current implementation:
+TrueShot is not a full rotation engine. It's an overlay:
 
-- Beast Mastery Hunter with two hero-path profiles:
-  - **Dark Ranger** - full cast-event state machine (Black Arrow, Withering Fire, Wailing Arrow timing, Barbed Shot charge dump)
-  - **Pack Leader** - streamlined profile (BW management, charge dump, Nature's Ally weaving, Wild Thrash AoE)
-- Automatic hero-path detection via `IsPlayerSpell` marker (switches on talent change)
-- AoE support via nameplate counting (best-effort, threshold >= 3)
+1. **Blizzard Assisted Combat** provides the base recommendation via `C_AssistedCombat.GetNextCastSpell()`
+2. **TrueShot PIN rules** override position 1 when a specific condition is met (e.g. "Black Arrow during Withering Fire")
+3. **TrueShot PREFER rules** elevate a spell to position 1 as a softer suggestion
+4. **Remaining positions** are filled from `C_AssistedCombat.GetRotationSpells()`
 
-Planned direction:
+State tracking is purely event-driven via `UNIT_SPELLCAST_SUCCEEDED`. No buff reading, no resource tracking, no hidden state simulation.
 
-- Marksmanship Hunter profiles (signal probes built, viability assessed)
-- additional spec-aware heuristics where the available API makes them defensible
+## Display Features
 
-## What It Does
-
-- Shows a compact hunter rotation queue on screen
-- Uses Blizzard `C_AssistedCombat` as the base recommendation source
-- Filters obvious utility noise such as `Call Pet` and `Revive Pet`
-- Supports BM-specific cast-tracked state (Dark Ranger: Black Arrow, Bestial Wrath, Wailing Arrow; Pack Leader: BW management, Wild Thrash AoE)
-- Nature's Ally Kill Command weaving (both profiles)
-- Barbed Shot charge dump before Bestial Wrath (validated via `C_Spell.GetSpellCharges`)
-- Shows cast-success feedback when a displayed recommendation is actually cast
-- Supports best-effort cooldown swipes for readable non-GCD lockouts
-- Keeps interrupt logic out of the primary queue by default
-- Supports click-through while locked
-- Registers a native `TrueShot` category in the in-game Settings UI
-- Keeps signal probe diagnostics disabled by default unless you explicitly enable them
-
-## Design Constraints
-
-`TrueShot` is intentionally built around the current Retail API reality:
-
-- primary combat state is heavily restricted in `Midnight`
-- cooldown values are not broadly safe to depend on
-- `Assisted Combat` remains the most reliable legal baseline
-
-That means this addon aims to be:
-
-- practical
-- conservative
-- transparent about what is heuristic vs. guaranteed
-
-It does **not** claim to be a full replacement for legacy full-state rotation simulation.
-
-## Framework Docs
-
-The framework direction is documented here:
-
-- [Project Goals](docs/PROJECT_GOALS.md)
-- [API Constraints](docs/API_CONSTRAINTS.md)
-- [Framework Model](docs/FRAMEWORK.md)
-- [Profile Contract](docs/PROFILE_CONTRACT.md)
-- [Profile Authoring Guide](docs/PROFILE_AUTHORING.md)
-
-These docs are meant to capture the hard-won findings from the `Midnight` API changes so future class/spec integrations do not repeat the same mistakes.
-They describe the target architecture, not a claim that the current alpha is already fully modularized.
-
-## Commands
-
-- `/ts lock`
-- `/ts unlock`
-- `/ts options`
-- `/ts burst`
-- `/ts hide`
-- `/ts show`
-- `/ts debug`
-- `/ts diagnostics on|off`
-- `/ts probe ...` (only when diagnostics are enabled)
-- `/trueshot`
+- Compact queue overlay with configurable icon count
+- **Masque support** for icon skinning (optional, zero-dependency)
+- **First-icon scale** (1.0x - 2.0x) for visual hierarchy
+- **Queue orientation** (LEFT / RIGHT / UP / DOWN)
+- **Override glow** with pulsing animation (cyan for PIN, blue for PREFER)
+- **Charge cooldown** edge ring for multi-charge spells (Barbed Shot, Aimed Shot, Wildfire Bomb)
+- **DurationObject cooldown path** for secret-safe rendering on modern builds
+- Keybind display, range indicator, cast success feedback
+- Cooldown swipes (best-effort, respects Midnight restrictions)
+- Optional backdrop toggle for clean floating-icons look
+- Scrollable settings panel via `/ts options`
+- Tiered update rates (10Hz combat, 2Hz idle, 0Hz hidden)
 
 ## Installation
 
@@ -98,38 +57,42 @@ They describe the target architecture, not a claim that the current alpha is alr
 World of Warcraft/_retail_/Interface/AddOns/
 ```
 
-2. Restart WoW or run `/reload`.
-3. Log into a hunter.
+2. Restart WoW or `/reload`.
+3. Log into a Hunter.
 
-## Current Scope Notes
+## Commands
 
-BM Hunter is alpha-solid with both hero paths covered:
+| Command | Description |
+|---------|-------------|
+| `/ts options` | Open settings panel |
+| `/ts lock` / `unlock` | Lock/unlock overlay position |
+| `/ts burst` | Toggle burst mode |
+| `/ts hide` / `show` | Toggle visibility |
+| `/ts debug` | Show profile state |
+| `/ts diagnostics on\|off` | Enable signal probes |
+| `/ts probe ...` | Run signal probes (requires diagnostics) |
 
-- Dark Ranger and Pack Leader profiles auto-detected and validated in-game
-- cast-event timers (BW cooldown, Withering Fire window, BA cooldown) are heuristic estimates, not exact cooldown reads -- Midnight restricts direct cooldown access
-- AoE target counting uses nameplate enumeration which is best-effort: it counts all visible hostile nameplates, not only mobs in active combat (documented as PARTIAL in `docs/SIGNAL_VALIDATION.md`)
-- Pack Leader is intentionally leaner than Dark Ranger because the rotation has fewer decision points
+## Design Philosophy
 
-If you use another hunter spec today, the addon will stay inactive instead of pretending to support behavior it does not yet model.
+TrueShot is built around the Midnight API reality:
 
-## Long-Term Direction
+- Primary combat state (buffs, resources, exact cooldowns) is restricted via secret values
+- Assisted Combat remains the most reliable legal baseline
+- Cast events (`UNIT_SPELLCAST_SUCCEEDED`) and spell charges (`C_Spell.GetSpellCharges`) are the primary non-secret signals
 
-Near-term:
+The addon is:
+- **Conservative**: only overrides AC where it's demonstrably wrong
+- **Transparent**: shows why it overrode AC (reason labels, phase indicators)
+- **Fail-safe**: degrades gracefully to pure AC passthrough if signals are unavailable
 
-- Marksmanship Hunter profiles (signal probes and viability assessment already built)
-- keep documenting which mechanics can be implemented directly, heuristically, or not at all
+## Framework Docs
 
-If the project eventually becomes truly class-agnostic beyond hunters, the framework contract should already support that. The current public branding, however, is still intentionally hunter-focused.
-
-## Provenance
-
-The current `TrueShot` codebase is an original standalone addon repository built around:
-
-- Blizzard `Assisted Combat`
-- direct in-game testing on Retail `Midnight`
-- cast-event-based heuristics developed during the initial BM alpha work
-
-It is not presented as a continuation of any prior branded addon. Historical research into older rotation addons informed design decisions, but this repository ships as its own project with its own code and release history.
+- [Project Goals](docs/PROJECT_GOALS.md)
+- [API Constraints](docs/API_CONSTRAINTS.md)
+- [Framework Model](docs/FRAMEWORK.md)
+- [Profile Contract](docs/PROFILE_CONTRACT.md)
+- [Profile Authoring Guide](docs/PROFILE_AUTHORING.md)
+- [Signal Validation](docs/SIGNAL_VALIDATION.md)
 
 ## License
 
