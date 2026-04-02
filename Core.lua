@@ -141,8 +141,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if TryActivate() then
             local profile = Engine.activeProfile
             local name = profile and profile.id or "unknown"
-            print("|cff00ff00[TrueShot]|r loaded. Profile: " .. name)
-            print("|cffaaaaaa  /ts lock|unlock|options|burst|help|r")
+            print("|cff00ff00[TrueShot]|r " .. name .. " | /ts help")
         else
             local specID = GetActiveSpecID()
             if not TrueShot.Profiles[specID or 0] then
