@@ -2,13 +2,15 @@
 ## Title: TrueShot
 ## Notes: Rotation overlay for WoW Midnight. Layers class-specific priority logic on top of Blizzard Assisted Combat.
 ## Author: itsDNNS
-## Version: 0.5.2-alpha
+## Version: 0.6.0-alpha
 ## SavedVariables: TrueShotDB
 ## OptionalDeps: Masque
 
 Engine.lua
 Profiles/BM_DarkRanger.lua
 Profiles/BM_PackLeader.lua
+Profiles/MM_DarkRanger.lua
+Profiles/MM_Sentinel.lua
 Core.lua
 Display.lua
 SettingsPanel.lua
