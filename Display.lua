@@ -353,10 +353,10 @@ function Display:UpdateContainerSize()
     reasonText:ClearAllPoints()
     phaseText:ClearAllPoints()
     if isVertical then
-        reasonText:SetPoint("LEFT", container, "RIGHT", 4, 0)
+        reasonText:SetPoint("LEFT", container, "RIGHT", 4, -8)
         reasonText:SetJustifyH("LEFT")
-        phaseText:SetPoint("RIGHT", container, "LEFT", -4, 0)
-        phaseText:SetJustifyH("RIGHT")
+        phaseText:SetPoint("LEFT", container, "RIGHT", 4, 8)
+        phaseText:SetJustifyH("LEFT")
     else
         reasonText:SetPoint("TOP", container, "BOTTOM", 0, -2)
         reasonText:SetJustifyH("CENTER")
@@ -438,10 +438,9 @@ function Display:UpdateChargeCooldown(icon, spellID)
         return
     end
 
-    icon.chargeCount:SetText(current)
-    icon.chargeCount:Show()
-
     if current < maxC and charges.cooldownStartTime and charges.cooldownDuration then
+        icon.chargeCount:SetText(current)
+        icon.chargeCount:Show()
         local modRate = charges.chargeModRate or 1.0
         if issecretvalue and issecretvalue(modRate) then modRate = 1.0 end
         icon.chargeCooldown:SetCooldown(
@@ -452,6 +451,7 @@ function Display:UpdateChargeCooldown(icon, spellID)
         icon.chargeCooldown:Show()
     else
         icon.chargeCooldown:Hide()
+        icon.chargeCount:Hide()
     end
 end
 
