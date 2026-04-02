@@ -4,6 +4,7 @@ local Engine = TrueShot.Engine
 local GetTime = GetTime
 local C_Spell_GetSpellTexture = C_Spell and C_Spell.GetSpellTexture
 local C_Spell_GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
+local C_Spell_GetSpellCharges = C_Spell and C_Spell.GetSpellCharges
 
 TrueShot.Display = {}
 local Display = TrueShot.Display
@@ -159,6 +160,23 @@ local function CreateIcon(index)
     if frame.cooldown.SetDrawEdge then frame.cooldown:SetDrawEdge(false) end
     if frame.cooldown.SetSwipeColor then frame.cooldown:SetSwipeColor(0, 0, 0, 0.8) end
     frame.cooldown:Hide()
+
+    -- Charge cooldown: renders beneath primary CD for charge-based spells
+    frame.chargeCooldown = CreateFrame("Cooldown", nil, frame, "CooldownFrameTemplate")
+    frame.chargeCooldown:ClearAllPoints()
+    frame.chargeCooldown:SetPoint("TOPLEFT", frame, "TOPLEFT", ICON_TEXTURE_INSET, -ICON_TEXTURE_INSET)
+    frame.chargeCooldown:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -ICON_TEXTURE_INSET, ICON_TEXTURE_INSET)
+    frame.chargeCooldown:SetHideCountdownNumbers(true)
+    if frame.chargeCooldown.SetDrawBling then frame.chargeCooldown:SetDrawBling(false) end
+    if frame.chargeCooldown.SetDrawEdge then frame.chargeCooldown:SetDrawEdge(false) end
+    if frame.chargeCooldown.SetSwipeColor then frame.chargeCooldown:SetSwipeColor(0, 0, 0, 0.4) end
+    frame.chargeCooldown:SetFrameLevel(frame.cooldown:GetFrameLevel() - 1)
+    frame.chargeCooldown:Hide()
+
+    frame.chargeCount = frame:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    frame.chargeCount:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -2, 2)
+    frame.chargeCount:SetJustifyH("RIGHT")
+    frame.chargeCount:Hide()
 
     frame.keybind = frame:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmallGray")
     frame.keybind:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -2, -2)
@@ -326,6 +344,47 @@ function Display:UpdateCooldown(icon, spellID)
     icon.cooldown:Show()
 end
 
+function Display:UpdateChargeCooldown(icon, spellID)
+    if not icon or not icon.chargeCooldown then return end
+    if not TrueShot.GetOpt("showCooldownSwipe") or not spellID or not C_Spell_GetSpellCharges then
+        icon.chargeCooldown:Hide()
+        if icon.chargeCount then icon.chargeCount:Hide() end
+        return
+    end
+
+    local ok, charges = pcall(C_Spell_GetSpellCharges, spellID)
+    if not ok or not charges or not charges.maxCharges or charges.maxCharges <= 1 then
+        icon.chargeCooldown:Hide()
+        if icon.chargeCount then icon.chargeCount:Hide() end
+        return
+    end
+
+    local current = charges.currentCharges or 0
+    local maxC = charges.maxCharges or 1
+
+    if issecretvalue and (issecretvalue(current) or issecretvalue(maxC)) then
+        icon.chargeCooldown:Hide()
+        if icon.chargeCount then icon.chargeCount:Hide() end
+        return
+    end
+
+    icon.chargeCount:SetText(current)
+    icon.chargeCount:Show()
+
+    if current < maxC and charges.cooldownStartTime and charges.cooldownDuration then
+        local modRate = charges.chargeModRate or 1.0
+        if issecretvalue and issecretvalue(modRate) then modRate = 1.0 end
+        icon.chargeCooldown:SetCooldown(
+            charges.cooldownStartTime,
+            charges.cooldownDuration,
+            modRate
+        )
+        icon.chargeCooldown:Show()
+    else
+        icon.chargeCooldown:Hide()
+    end
+end
+
 function Display:UpdateCastFeedback(icon, now)
     if not icon or not icon.success then return end
     if not TrueShot.GetOpt("showCastFeedback") then
@@ -386,17 +445,22 @@ function Display:UpdateQueue(queue)
 
                 icon.spellID = spellID
                 self:UpdateCooldown(icon, spellID)
+                self:UpdateChargeCooldown(icon, spellID)
                 self:UpdateCastFeedback(icon, now)
                 icon:Show()
             else
                 icon.spellID = nil
                 ClearCooldown(icon)
+                if icon.chargeCooldown then icon.chargeCooldown:Hide() end
+                if icon.chargeCount then icon.chargeCount:Hide() end
                 icon.success:Hide()
                 icon:Hide()
             end
         else
             icon.spellID = nil
             ClearCooldown(icon)
+            if icon.chargeCooldown then icon.chargeCooldown:Hide() end
+            if icon.chargeCount then icon.chargeCount:Hide() end
             icon.success:Hide()
             icon:Hide()
         end
@@ -406,6 +470,8 @@ function Display:UpdateQueue(queue)
         local icon = icons[i]
         icon.spellID = nil
         ClearCooldown(icon)
+        if icon.chargeCooldown then icon.chargeCooldown:Hide() end
+        if icon.chargeCount then icon.chargeCount:Hide() end
         icon.success:Hide()
         icon:Hide()
     end
