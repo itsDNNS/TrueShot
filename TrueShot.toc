@@ -1,6 +1,6 @@
 ## Interface: 120000
 ## Title: TrueShot
-## Notes: Hunter rotation overlay for WoW Midnight. Layers priority fixes on top of Blizzard Assisted Combat for all three Hunter specs.
+## Notes: Rotation overlay for WoW Midnight. Layers priority fixes on top of Blizzard Assisted Combat.
 ## Author: itsDNNS
 ## Version: @project-version@
 ## X-Category: Combat
@@ -17,6 +17,10 @@ Profiles/MM_DarkRanger.lua
 Profiles/MM_Sentinel.lua
 Profiles/SV_PackLeader.lua
 Profiles/SV_Sentinel.lua
+Profiles/Feral_DruidOfTheClaw.lua
+Profiles/Feral_Wildstalker.lua
+Profiles/Balance_KeeperOfTheGrove.lua
+Profiles/Balance_ElunesChosen.lua
 Core.lua
 Display.lua
 SettingsPanel.lua
