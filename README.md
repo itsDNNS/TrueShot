@@ -4,13 +4,17 @@
 
 # TrueShot
 
-A World of Warcraft addon for Retail Midnight that layers hunter-focused rotation fixes on top of Blizzard's Assisted Combat system.
+A World of Warcraft addon for Retail Midnight that layers rotation fixes on top of Blizzard's Assisted Combat system.
 
 Blizzard's built-in rotation helper handles ~95% of ability prioritization correctly. TrueShot identifies the remaining cases where it doesn't and overrides them with cast-event-tracked heuristics.
 
-## Supported Specs
+## Supported Classes
 
-All three Hunter specializations are supported with hero-path-specific profiles:
+TrueShot currently supports three classes with 14 hero-path-specific profiles. Hero path auto-detection works via `IsPlayerSpell` markers and switches automatically on talent changes.
+
+### Hunter
+
+All three Hunter specs are fully validated in-game with detailed cast-event state machines.
 
 | Spec | Hero Path | Key Overrides |
 |------|-----------|---------------|
@@ -21,7 +25,29 @@ All three Hunter specializations are supported with hero-path-specific profiles:
 | **Survival** | Pack Leader | Stampede KC sequencing after Takedown, WFB charge cap prevention, Takedown burst window |
 | **Survival** | Sentinel | WFB charge management with near-cap cutoff, Moonlight Chakram timing, Takedown burst window |
 
-Hero path auto-detection works via `IsPlayerSpell` markers and switches automatically on talent changes.
+### Demon Hunter
+
+Havoc provides meaningful burst window tracking. Devourer is heavily AC-reliant due to hidden resource state (Souls, Voidfall stacks, Fury).
+
+| Spec | Hero Path | Key Overrides |
+|------|-----------|---------------|
+| **Havoc** | Aldrachi Reaver | Metamorphosis burst window tracking, Essence Break timing during Meta |
+| **Havoc** | Fel-Scarred | Metamorphosis burst window tracking, Essence Break timing during Meta |
+| **Devourer** | Annihilator | Void Metamorphosis window tracking, phase detection |
+| **Devourer** | Void-Scarred | Void Metamorphosis window tracking, phase detection |
+
+### Druid
+
+Both specs are heavily resource-dependent (Energy/CP for Feral, Astral Power for Balance). TrueShot provides burst window tracking and phase detection.
+
+| Spec | Hero Path | Key Overrides |
+|------|-----------|---------------|
+| **Feral** | Druid of the Claw | Tiger's Fury + Berserk burst tracking, Berserk/TF alignment |
+| **Feral** | Wildstalker | Tiger's Fury + Berserk burst tracking, Berserk/TF alignment |
+| **Balance** | Keeper of the Grove | Celestial Alignment / Incarnation burst tracking |
+| **Balance** | Elune's Chosen | Celestial Alignment / Incarnation burst tracking |
+
+> **Note:** Demon Hunter and Druid profiles are based on Icy Veins rotation guides and Wowhead spell data. Spell IDs and burst window timers may need adjustment after in-game validation.
 
 ## How It Works
 
@@ -58,7 +84,7 @@ World of Warcraft/_retail_/Interface/AddOns/
 ```
 
 2. Restart WoW or `/reload`.
-3. Log into a Hunter.
+3. Log into a supported class (Hunter, Demon Hunter, or Druid).
 
 ## Commands
 
