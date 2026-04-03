@@ -21,6 +21,10 @@ Profiles/Feral_DruidOfTheClaw.lua
 Profiles/Feral_Wildstalker.lua
 Profiles/Balance_KeeperOfTheGrove.lua
 Profiles/Balance_ElunesChosen.lua
+Profiles/Havoc_AldrachiReaver.lua
+Profiles/Havoc_FelScarred.lua
+Profiles/Devourer_Annihilator.lua
+Profiles/Devourer_VoidScarred.lua
 Core.lua
 Display.lua
 SettingsPanel.lua
