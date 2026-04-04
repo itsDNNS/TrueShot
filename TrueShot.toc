@@ -25,6 +25,12 @@ Profiles/Havoc_AldrachiReaver.lua
 Profiles/Havoc_FelScarred.lua
 Profiles/Devourer_Annihilator.lua
 Profiles/Devourer_VoidScarred.lua
+Profiles/Fire_Sunfury.lua
+Profiles/Fire_Frostfire.lua
+Profiles/Frost_Frostfire.lua
+Profiles/Frost_Spellslinger.lua
+Profiles/Arcane_Sunfury.lua
+Profiles/Arcane_Spellslinger.lua
 Core.lua
 Display.lua
 SettingsPanel.lua
