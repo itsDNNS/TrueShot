@@ -75,12 +75,12 @@ local Profile = {
             },
         },
 
-        -- Wild Thrash: AoE preference (best-effort via PARTIAL nameplate count)
+        -- Wild Thrash: AoE preference at 2+ targets (WCL: 79% on-CD in M+, 3.58 CPM)
         {
             type = "PREFER",
             spellID = 1264359, -- Wild Thrash
-            reason = "AoE 3+",
-            condition = { type = "target_count", op = ">=", value = 3 },
+            reason = "AoE 2+",
+            condition = { type = "target_count", op = ">=", value = 2 },
         },
 
         -- Nature's Ally: never Kill Command twice in a row
