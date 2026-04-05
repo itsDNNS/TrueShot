@@ -110,7 +110,6 @@ local ACTION_BUTTON_BINDINGS = {
     { prefix = "MultiBar7Button", commandPrefix = "MULTIACTIONBAR7BUTTON" },
 }
 
-local LegacyGetSpellInfo = rawget(_G, "GetSpellInfo")
 local LegacyGetActionTexture = rawget(_G, "GetActionTexture")
 
 local function NormalizeSpellName(name)
@@ -125,12 +124,6 @@ local function ResolveSpellNameFromID(spellID)
     if C_Spell and C_Spell.GetSpellName then
         local ok, name = pcall(C_Spell.GetSpellName, spellID)
         if ok and name then
-            return NormalizeSpellName(name)
-        end
-    end
-    if LegacyGetSpellInfo then
-        local name = LegacyGetSpellInfo(spellID)
-        if name then
             return NormalizeSpellName(name)
         end
     end
@@ -149,13 +142,6 @@ local function ResolveSpellIDFromIdentifier(spellIdentifier)
         local ok, info = pcall(C_Spell.GetSpellInfo, spellIdentifier)
         if ok and info and info.spellID then
             return info.spellID
-        end
-    end
-
-    if LegacyGetSpellInfo then
-        local _, _, _, _, _, _, legacySpellID = LegacyGetSpellInfo(spellIdentifier)
-        if legacySpellID then
-            return legacySpellID
         end
     end
 
@@ -193,6 +179,8 @@ local function ResolveSpellFromMacro(macroID)
             command = command:lower()
             if command == "cast" or command == "castsequence" then
                 args = args:gsub("%b[]", "")
+                -- Strip castsequence reset options (e.g. "reset=target/combat")
+                args = args:gsub("^%s*reset=[^%s]*%s*", "")
                 local token = args:match("^%s*([^,;]+)")
                 if token then
                     token = token:gsub("^%s+", ""):gsub("%s+$", ""):gsub("^!", "")
@@ -215,8 +203,8 @@ end
 local function ResolveActionSlotFromButton(button)
     if not button then return nil end
     if button.CalculateAction then
-        local slot = button:CalculateAction()
-        if slot then return slot end
+        local ok, slot = pcall(button.CalculateAction, button)
+        if ok and slot then return slot end
     end
     return button.action
 end
@@ -314,6 +302,8 @@ local function GetKeybindForSpell(spellID)
         if key then return key end
     end
 
+    -- Best-effort texture fallback: icon IDs are not unique per spell,
+    -- so this can misattribute a keybind when spells share an icon.
     if C_Spell_GetSpellTexture then
         local texture = C_Spell_GetSpellTexture(spellID)
         if texture then
@@ -335,6 +325,8 @@ local function FormatKeybindForDisplay(key)
         return ""
     end
     key = key:gsub("SHIFT%-", "S-")
+    key = key:gsub("CTRL%-", "C-")
+    key = key:gsub("ALT%-", "A-")
     return key
 end
 
