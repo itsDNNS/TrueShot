@@ -19,7 +19,13 @@ local SPELLS = {
     FlamefangPitch = 1251592,
     RaptorStrike   = 186270,
     Harpoon        = 190925,
+    HatchetToss    = 259489,
+    CallPet1       = 883,
+    RevivePet      = 982,
 }
+
+-- Melee range probe spells (if any returns in_range=true, player is in melee)
+local MELEE_PROBE_SPELLS = { SPELLS.RaptorStrike }
 
 ------------------------------------------------------------------------
 -- Profile definition
@@ -41,6 +47,15 @@ local Profile = {
     rules = {
         -- Filter utility spells
         { type = "BLACKLIST", spellID = SPELLS.Harpoon },
+        { type = "BLACKLIST", spellID = SPELLS.CallPet1 },
+        { type = "BLACKLIST", spellID = SPELLS.RevivePet },
+
+        -- Hatchet Toss: suppress when in melee range
+        {
+            type = "BLACKLIST_CONDITIONAL",
+            spellID = SPELLS.HatchetToss,
+            condition = { type = "in_melee_range" },
+        },
 
         -- Stampede: first KC after Takedown triggers Stampede
         {
@@ -142,6 +157,16 @@ function Profile:EvalCondition(cond)
     elseif cond.type == "boomstick_on_cd" then
         if s.lastBoomstickCast == 0 then return false end
         return (now - s.lastBoomstickCast) < BOOMSTICK_COOLDOWN
+
+    elseif cond.type == "in_melee_range" then
+        -- Check if any melee probe spell is in range; fallback: false (don't suppress)
+        if not C_Spell or not C_Spell.IsSpellInRange then return false end
+        if not UnitExists("target") then return false end
+        for _, probeID in ipairs(MELEE_PROBE_SPELLS) do
+            local ok, inRange = pcall(C_Spell.IsSpellInRange, probeID, "target")
+            if ok and inRange == true then return true end
+        end
+        return false
 
     elseif cond.type == "wfb_charges" then
         if C_Spell and C_Spell.GetSpellCharges then
