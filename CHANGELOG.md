@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.14.5 - 2026-04-05
+
+### Added
+- **X/Y position controls** in settings panel (PR #64 by @jmusick)
+- Position now persists across /reload and relog via SavedVariables
+
+### Fixed
+- Settings panel OnUpdate no longer polls when panel is hidden
+- Coordinate input no longer double-applies on Enter + focus-lost
+- SetPositionOffsets preserves current anchor target instead of hardcoding UIParent
+
 ## v0.14.0 - 2026-04-05
 
 ### Added
