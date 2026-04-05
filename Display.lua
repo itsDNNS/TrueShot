@@ -40,7 +40,9 @@ container:EnableMouse(true)
 container:SetClampedToScreen(true)
 container:RegisterForDrag("LeftButton")
 container:SetScript("OnDragStart", function(self)
-    if not TrueShot.GetOpt("locked") then self:StartMoving() end
+    if not TrueShot.GetOpt("locked") then
+        self:StartMoving()
+    end
 end)
 container:SetScript("OnDragStop", function(self)
     self:StopMovingOrSizing()
@@ -729,6 +731,49 @@ function Display:UpdateContainerSize()
     LayoutIcons()
 end
 
+function Display:GetPositionCoordinatesText()
+    local point, relativeName, relativePoint, xOfs, yOfs = self:GetPositionOffsets()
+    if not point then
+        return nil
+    end
+
+    return string.format("%s->%s:%s X %.2f Y %.2f", point, relativeName,
+        relativePoint or point, xOfs or 0, yOfs or 0)
+end
+
+function Display:GetPositionOffsets()
+    local point, relativeTo, relativePoint, xOfs, yOfs = container:GetPoint(1)
+    if not point then
+        return nil
+    end
+
+    local relativeName
+    if relativeTo and relativeTo.GetName then
+        relativeName = relativeTo:GetName()
+    end
+    if not relativeName or relativeName == "" then
+        relativeName = "UIParent"
+    end
+
+    return point, relativeName, relativePoint, xOfs or 0, yOfs or 0
+end
+
+function Display:SetPositionOffsets(xOfs, yOfs)
+    xOfs = tonumber(xOfs)
+    yOfs = tonumber(yOfs)
+    if not xOfs or not yOfs then
+        return false
+    end
+
+    local point, _, relativePoint = container:GetPoint(1)
+    point = point or "CENTER"
+    relativePoint = relativePoint or point
+
+    container:ClearAllPoints()
+    container:SetPoint(point, UIParent, relativePoint, xOfs, yOfs)
+    return true
+end
+
 function Display:ApplyOptions()
     self:UpdateContainerSize()
     container:EnableMouse(not TrueShot.GetOpt("locked"))
@@ -742,6 +787,7 @@ function Display:ApplyOptions()
         container:SetBackdropColor(0, 0, 0, 0)
         container:SetBackdropBorderColor(0, 0, 0, 0)
     end
+
 end
 
 function Display:UpdateCooldown(icon, spellID)
@@ -1017,6 +1063,7 @@ function Display:UpdateQueue(queue)
     elseif icons[1] then
         HideGlow(icons[1])
     end
+
 end
 
 function Display:RenderQueueNow(queue)
