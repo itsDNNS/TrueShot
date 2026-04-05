@@ -5,6 +5,7 @@
 local Engine = TrueShot.Engine
 
 local TAKEDOWN_DURATION = 8
+local BOOMSTICK_COOLDOWN = 30
 
 ------------------------------------------------------------------------
 -- Spell IDs
@@ -32,6 +33,7 @@ local Profile = {
     state = {
         lastTakedownCast = 0,
         takedownUntil = 0,
+        lastBoomstickCast = 0,
     },
 
     rules = {
@@ -46,12 +48,16 @@ local Profile = {
             condition = { type = "wfb_near_cap", seconds = 5 },
         },
 
-        -- Boomstick pinned during Takedown burst
+        -- Boomstick pinned during Takedown burst (suppress when on CD)
         {
             type = "PIN",
             spellID = SPELLS.Boomstick,
             reason = "Takedown Burst",
-            condition = { type = "takedown_active" },
+            condition = {
+                type = "and",
+                left  = { type = "takedown_active" },
+                right = { type = "not", inner = { type = "boomstick_on_cd" } },
+            },
         },
 
         -- Moonlight Chakram early in Takedown window (long damage)
@@ -83,6 +89,7 @@ local Profile = {
 function Profile:ResetState()
     self.state.lastTakedownCast = 0
     self.state.takedownUntil = 0
+    self.state.lastBoomstickCast = 0
 end
 
 function Profile:OnSpellCast(spellID)
@@ -92,11 +99,15 @@ function Profile:OnSpellCast(spellID)
     if spellID == SPELLS.Takedown then
         s.lastTakedownCast = now
         s.takedownUntil = now + TAKEDOWN_DURATION
+
+    elseif spellID == SPELLS.Boomstick then
+        s.lastBoomstickCast = now
     end
 end
 
 function Profile:OnCombatEnd()
     self.state.takedownUntil = 0
+    self.state.lastBoomstickCast = 0
 end
 
 ------------------------------------------------------------------------
@@ -113,6 +124,10 @@ function Profile:EvalCondition(cond)
 
     elseif cond.type == "takedown_active" then
         return now < s.takedownUntil
+
+    elseif cond.type == "boomstick_on_cd" then
+        if s.lastBoomstickCast == 0 then return false end
+        return (now - s.lastBoomstickCast) < BOOMSTICK_COOLDOWN
 
     elseif cond.type == "wfb_near_cap" then
         if C_Spell and C_Spell.GetSpellCharges then

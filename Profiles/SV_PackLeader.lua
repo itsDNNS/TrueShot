@@ -5,6 +5,7 @@
 local Engine = TrueShot.Engine
 
 local TAKEDOWN_DURATION = 8
+local BOOMSTICK_COOLDOWN = 30
 
 ------------------------------------------------------------------------
 -- Spell IDs
@@ -34,6 +35,7 @@ local Profile = {
         lastTakedownCast = 0,
         takedownUntil = 0,
         kcCastInTakedown = false,
+        lastBoomstickCast = 0,
     },
 
     rules = {
@@ -60,12 +62,16 @@ local Profile = {
             condition = { type = "wfb_charges", op = "==", value = 2 },
         },
 
-        -- Boomstick: burst during Takedown window
+        -- Boomstick: burst during Takedown window (suppress when on CD)
         {
             type = "PREFER",
             spellID = SPELLS.Boomstick,
             reason = "Takedown Burst",
-            condition = { type = "takedown_active" },
+            condition = {
+                type = "and",
+                left  = { type = "takedown_active" },
+                right = { type = "not", inner = { type = "boomstick_on_cd" } },
+            },
         },
 
         -- Flamefang Pitch: use when ready
@@ -86,6 +92,7 @@ function Profile:ResetState()
     self.state.lastTakedownCast = 0
     self.state.takedownUntil = 0
     self.state.kcCastInTakedown = false
+    self.state.lastBoomstickCast = 0
 end
 
 function Profile:OnSpellCast(spellID)
@@ -96,6 +103,9 @@ function Profile:OnSpellCast(spellID)
         s.lastTakedownCast = now
         s.takedownUntil = now + TAKEDOWN_DURATION
         s.kcCastInTakedown = false
+
+    elseif spellID == SPELLS.Boomstick then
+        s.lastBoomstickCast = now
 
     elseif spellID == SPELLS.KillCommand then
         if now < s.takedownUntil then
@@ -108,6 +118,7 @@ function Profile:OnCombatEnd()
     self.state.takedownUntil = 0
     self.state.kcCastInTakedown = false
     self.state.lastTakedownCast = 0
+    self.state.lastBoomstickCast = 0
 end
 
 ------------------------------------------------------------------------
@@ -127,6 +138,10 @@ function Profile:EvalCondition(cond)
 
     elseif cond.type == "kc_cast_in_takedown" then
         return s.kcCastInTakedown
+
+    elseif cond.type == "boomstick_on_cd" then
+        if s.lastBoomstickCast == 0 then return false end
+        return (now - s.lastBoomstickCast) < BOOMSTICK_COOLDOWN
 
     elseif cond.type == "wfb_charges" then
         if C_Spell and C_Spell.GetSpellCharges then
