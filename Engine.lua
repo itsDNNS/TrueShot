@@ -171,9 +171,54 @@ local _queue = {}
 local _condBlacklist = {}
 local _seen = {}
 local _aoeCondition = { type = "target_count", op = ">=", value = 3 }
+local SV_SPEC_ID = 255
+local SV_HATCHET_TOSS_NAME = "Hatchet Toss"
+local SV_MELEE_RANGE_CHECK_IDS = {
+    186270, -- Raptor Strike
+    259387, -- Mongoose Bite
+}
 
 local function IsBlocked(spellID)
     return blacklistedSpells[spellID] or _condBlacklist[spellID]
+end
+
+local function IsSpellName(spellID, expectedName)
+    if not spellID or not expectedName or not C_Spell or not C_Spell.GetSpellName then
+        return false
+    end
+    local ok, spellName = pcall(C_Spell.GetSpellName, spellID)
+    return ok and spellName == expectedName
+end
+
+local function IsOutOfMeleeRange()
+    if not UnitExists("target") or not UnitCanAttack("player", "target") then
+        return false
+    end
+    if not C_Spell or not C_Spell.IsSpellInRange then return false end
+
+    local hadReadableProbe = false
+    for _, spellID in ipairs(SV_MELEE_RANGE_CHECK_IDS) do
+        local ok, inRange = pcall(C_Spell.IsSpellInRange, spellID, "target")
+        if ok and inRange ~= nil and not IsSecret(inRange) then
+            hadReadableProbe = true
+            if inRange == true then
+                return false
+            end
+        end
+    end
+
+    return hadReadableProbe
+end
+
+function Engine:IsSuppressedBySpecRules(spellID)
+    local profile = self.activeProfile
+    if not profile or profile.specID ~= SV_SPEC_ID then return false end
+
+    if IsSpellName(spellID, SV_HATCHET_TOSS_NAME) then
+        return not IsOutOfMeleeRange()
+    end
+
+    return false
 end
 
 function Engine:ComputeQueue(iconCount)
@@ -237,8 +282,10 @@ function Engine:ComputeQueue(iconCount)
     -- Position 1
     if baseSpell and IsBlocked(baseSpell) then baseSpell = nil end
     local pos1 = pinnedSpell or preferredSpell or baseSpell
-    if pos1 and not IsBlocked(pos1) then
+    local queuedPos1 = nil
+    if pos1 and not IsBlocked(pos1) and not self:IsSuppressedBySpecRules(pos1) then
         queue[#queue + 1] = pos1
+        queuedPos1 = pos1
     end
 
     -- Store metadata for display features
@@ -267,7 +314,7 @@ function Engine:ComputeQueue(iconCount)
     if rotSpells then
         wipe(_seen)
         local seen = _seen
-        if pos1 then seen[pos1] = true end
+        if queuedPos1 then seen[queuedPos1] = true end
 
         for _, entry in ipairs(rotSpells) do
             if #queue >= iconCount then break end
@@ -280,6 +327,7 @@ function Engine:ComputeQueue(iconCount)
             if spellID
                 and not seen[spellID]
                 and not IsBlocked(spellID)
+                and not self:IsSuppressedBySpecRules(spellID)
                 and self:IsSpellCastable(spellID)
             then
                 queue[#queue + 1] = spellID
