@@ -77,15 +77,19 @@ local Profile = {
             },
         },
 
-        -- Wild Thrash: AoE priority at 2+ targets (WCL: 79% on-CD in M+, 3.58 CPM)
+        -- Wild Thrash: AoE priority at 2+ targets, only in combat (WCL: 79% on-CD in M+)
         {
             type = "PIN",
             spellID = 1264359, -- Wild Thrash
             reason = "AoE 2+",
             condition = {
                 type = "and",
-                left  = { type = "target_count", op = ">=", value = 2 },
-                right = { type = "not", inner = { type = "wt_on_cd" } },
+                left  = { type = "in_combat" },
+                right = {
+                    type = "and",
+                    left  = { type = "target_count", op = ">=", value = 2 },
+                    right = { type = "not", inner = { type = "wt_on_cd" } },
+                },
             },
         },
 

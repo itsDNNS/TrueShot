@@ -67,6 +67,9 @@ function Engine:EvalCondition(cond)
         end
         return false
 
+    elseif cond.type == "in_combat" then
+        return UnitAffectingCombat("player")
+
     elseif cond.type == "target_count" then
         local count = GetHostileCount()
         if cond.op == ">=" then return count >= cond.value end
