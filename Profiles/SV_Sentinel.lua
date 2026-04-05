@@ -18,6 +18,8 @@ local SPELLS = {
     MoonlightChakram = 1264902,
     FlamefangPitch   = 1251592,
     Harpoon          = 190925,
+    CallPet1         = 883,
+    RevivePet        = 982,
 }
 
 ------------------------------------------------------------------------
@@ -39,6 +41,8 @@ local Profile = {
     rules = {
         -- Filter utility spells
         { type = "BLACKLIST", spellID = SPELLS.Harpoon },
+        { type = "BLACKLIST", spellID = SPELLS.CallPet1 },
+        { type = "BLACKLIST", spellID = SPELLS.RevivePet },
 
         -- Prevent capping WFB charges while fishing Sentinel's Mark procs
         {
