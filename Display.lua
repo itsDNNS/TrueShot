@@ -279,7 +279,7 @@ local function RebuildKeybindCache()
     -- Also support direct keybindings to macros (not on action bars).
     if GetNumBindings and GetBinding and GetMacroIndexByName then
         for i = 1, GetNumBindings() do
-            local command, key1, key2 = GetBinding(i)
+            local command, _cat, key1, key2 = GetBinding(i)
             if type(command) == "string" and command:find("^MACRO ") then
                 local macroName = command:sub(7)
                 local macroID = GetMacroIndexByName(macroName)
