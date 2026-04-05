@@ -19,6 +19,24 @@ end
 local _hostileCount = 0
 local _hostileCountTick = 0
 
+local function IsAttackableUnitToken(unit)
+    if type(unit) ~= "string" or unit == "" or IsSecret(unit) then
+        return false
+    end
+
+    local okExists, exists = pcall(UnitExists, unit)
+    if not okExists or not exists or IsSecret(exists) then
+        return false
+    end
+
+    local okAttack, canAttack = pcall(UnitCanAttack, "player", unit)
+    if not okAttack or IsSecret(canAttack) then
+        return false
+    end
+
+    return canAttack == true
+end
+
 local function GetHostileCount()
     local now = GetTime()
     if _hostileCountTick == now then return _hostileCount end
@@ -35,7 +53,7 @@ local function GetHostileCount()
     local count = 0
     for _, plate in ipairs(plates) do
         local unit = plate.namePlateUnitToken or plate.unitToken
-        if unit and UnitExists(unit) and UnitCanAttack("player", unit) then
+        if IsAttackableUnitToken(unit) then
             count = count + 1
         end
     end
