@@ -82,6 +82,15 @@ local function CreateSlider(parent, label, description, relativeTo, key, minVal,
     return slider, desc
 end
 
+local function CreateCoordinateEditBox(parent, anchorTo, xOffset)
+    local box = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+    box:SetSize(84, 20)
+    box:SetAutoFocus(false)
+    box:SetPoint("LEFT", anchorTo, "RIGHT", xOffset, 0)
+    box:SetTextInsets(4, 4, 0, 0)
+    return box
+end
+
 local function CreateSettingsPanel()
     local panel = CreateFrame("Frame", "TrueShotSettingsPanel", UIParent)
     panel.name = "TrueShot"
@@ -189,9 +198,82 @@ local function CreateSettingsPanel()
         whyDesc, "showBackdrop"
     )
 
+    local coordInputsLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    coordInputsLabel:SetPoint("TOPLEFT", backdropDesc, "BOTTOMLEFT", 0, -10)
+    coordInputsLabel:SetText("Position offsets (UIParent)")
+
+    local coordInputsRow = CreateFrame("Frame", nil, content)
+    coordInputsRow:SetSize(420, 22)
+    coordInputsRow:SetPoint("TOPLEFT", coordInputsLabel, "BOTTOMLEFT", 0, -6)
+
+    local xLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    xLabel:SetPoint("LEFT", coordInputsRow, "LEFT", 0, 0)
+    xLabel:SetText("X")
+
+    local xEdit = CreateCoordinateEditBox(content, xLabel, 6)
+
+    local yLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    yLabel:SetPoint("LEFT", xEdit, "RIGHT", 14, 0)
+    yLabel:SetText("Y")
+
+    local yEdit = CreateCoordinateEditBox(content, yLabel, 6)
+
+    local applyCoordsButton = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+    applyCoordsButton:SetSize(92, 20)
+    applyCoordsButton:SetPoint("LEFT", yEdit, "RIGHT", 14, 0)
+    applyCoordsButton:SetText("Apply")
+
+    local function SyncPositionEditBoxes()
+        if xEdit:HasFocus() or yEdit:HasFocus() then
+            return
+        end
+
+        local display = TrueShot.Display
+        if not display or not display.GetPositionOffsets then
+            xEdit:SetText("")
+            yEdit:SetText("")
+            return
+        end
+
+        local point, _relativeName, _relativePoint, xOfs, yOfs = display:GetPositionOffsets()
+        if not point then
+            xEdit:SetText("")
+            yEdit:SetText("")
+            return
+        end
+
+        xEdit:SetText(string.format("%.2f", xOfs or 0))
+        yEdit:SetText(string.format("%.2f", yOfs or 0))
+    end
+
+    local function ApplyPositionFromInputs()
+        local xVal = tonumber(xEdit:GetText() or "")
+        local yVal = tonumber(yEdit:GetText() or "")
+        if not xVal or not yVal then
+            return
+        end
+
+        local display = TrueShot.Display
+        if display and display.SetPositionOffsets and display:SetPositionOffsets(xVal, yVal) then
+            SyncPositionEditBoxes()
+        end
+    end
+
+    xEdit:SetScript("OnEnterPressed", function(self)
+        ApplyPositionFromInputs()
+        self:ClearFocus()
+    end)
+    yEdit:SetScript("OnEnterPressed", function(self)
+        ApplyPositionFromInputs()
+        self:ClearFocus()
+    end)
+    xEdit:SetScript("OnEditFocusLost", ApplyPositionFromInputs)
+    yEdit:SetScript("OnEditFocusLost", ApplyPositionFromInputs)
+    applyCoordsButton:SetScript("OnClick", ApplyPositionFromInputs)
+
     -- Orientation
     local orientLabel = content:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-    orientLabel:SetPoint("TOPLEFT", backdropDesc, "BOTTOMLEFT", 0, -18)
+    orientLabel:SetPoint("TOPLEFT", coordInputsRow, "BOTTOMLEFT", 0, -16)
     orientLabel:SetText("Queue Orientation")
 
     local orientDropdown = CreateFrame("Frame", "TrueShotOrientDropdown", content,
@@ -278,10 +360,18 @@ local function CreateSettingsPanel()
         rangeCheck.sync()
         whyCheck.sync()
         backdropCheck.sync()
+        SyncPositionEditBoxes()
         UIDropDownMenu_SetText(orientDropdown, TrueShot.GetOpt("orientation"))
         local fis = TrueShot.GetOpt("firstIconScale") or 1.3
         fisSlider:SetValue(fis)
         fisSlider.Text:SetText(string.format("%.1f", fis))
+    end)
+
+    panel:SetScript("OnUpdate", function(_, elapsed)
+        panel._coordsElapsed = (panel._coordsElapsed or 0) + elapsed
+        if panel._coordsElapsed < 0.2 then return end
+        panel._coordsElapsed = 0
+        SyncPositionEditBoxes()
     end)
 
     return panel
