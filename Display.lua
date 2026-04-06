@@ -7,6 +7,9 @@ local C_Spell_GetSpellCooldown = C_Spell and C_Spell.GetSpellCooldown
 local C_Spell_GetSpellCharges = C_Spell and C_Spell.GetSpellCharges
 local C_Spell_GetSpellCooldownDuration = C_Spell and C_Spell.GetSpellCooldownDuration
 local C_Spell_GetSpellChargeDuration = C_Spell and C_Spell.GetSpellChargeDuration
+local C_ActionBar_GetActionCooldown = C_ActionBar and C_ActionBar.GetActionCooldown
+local C_ActionBar_GetActionCooldownDuration = C_ActionBar and C_ActionBar.GetActionCooldownDuration
+local C_ActionBar_GetActionChargeDuration = C_ActionBar and C_ActionBar.GetActionChargeDuration
 
 local Masque = _G.LibStub and _G.LibStub("Masque", true)
 local MasqueGroup = Masque and Masque:Group("TrueShot", "Queue")
@@ -141,6 +144,9 @@ end
 local keybindCache = {}
 local keybindNameCache = {}
 local keybindTextureCache = {}
+local actionSlotCache = {}
+local actionSlotNameCache = {}
+local actionSlotTextureCache = {}
 local keybindCacheDirty = true
 
 local ACTION_BUTTON_BINDINGS = {
@@ -287,10 +293,26 @@ local function CacheSpellKeybind(spellID, spellNameKey, key)
     end
 end
 
+local function CacheSpellActionSlot(spellID, spellNameKey, texture, slot)
+    if not slot then return end
+    if spellID and not actionSlotCache[spellID] then
+        actionSlotCache[spellID] = slot
+    end
+    if spellNameKey and not actionSlotNameCache[spellNameKey] then
+        actionSlotNameCache[spellNameKey] = slot
+    end
+    if texture and not actionSlotTextureCache[texture] then
+        actionSlotTextureCache[texture] = slot
+    end
+end
+
 local function RebuildKeybindCache()
     wipe(keybindCache)
     wipe(keybindNameCache)
     wipe(keybindTextureCache)
+    wipe(actionSlotCache)
+    wipe(actionSlotNameCache)
+    wipe(actionSlotTextureCache)
 
     for _, bar in ipairs(ACTION_BUTTON_BINDINGS) do
         for btn = 1, 12 do
@@ -304,14 +326,21 @@ local function RebuildKeybindCache()
                 if slot then
                     local actionType, id = GetActionInfo(slot)
                     if actionType == "spell" and id then
-                        CacheSpellKeybind(id, ResolveSpellNameFromID(id), key)
+                        local nameKey = ResolveSpellNameFromID(id)
+                        local texture = LegacyGetActionTexture and LegacyGetActionTexture(slot)
+                        CacheSpellKeybind(id, nameKey, key)
+                        CacheSpellActionSlot(id, nameKey, texture, slot)
                     elseif actionType == "macro" and id then
                         local spellID, spellNameKey = ResolveSpellFromMacro(id)
+                        local texture = LegacyGetActionTexture and LegacyGetActionTexture(slot)
                         CacheSpellKeybind(spellID, spellNameKey, key)
-                        if not spellID and not spellNameKey then
-                            local texture = LegacyGetActionTexture and LegacyGetActionTexture(slot)
-                            if texture and not keybindTextureCache[texture] then
+                        CacheSpellActionSlot(spellID, spellNameKey, texture, slot)
+                        if not spellID and not spellNameKey and texture then
+                            if not keybindTextureCache[texture] then
                                 keybindTextureCache[texture] = key
+                            end
+                            if not actionSlotTextureCache[texture] then
+                                actionSlotTextureCache[texture] = slot
                             end
                         end
                     end
@@ -370,6 +399,31 @@ local function GetKeybindForSpell(spellID)
                     keybindNameCache[nameKey] = key
                 end
                 return key
+            end
+        end
+    end
+    return nil
+end
+
+local function GetActionSlotForSpell(spellID)
+    if keybindCacheDirty then RebuildKeybindCache() end
+    local slot = actionSlotCache[spellID]
+    if slot then return slot end
+    local nameKey = ResolveSpellNameFromID(spellID)
+    if nameKey then
+        slot = actionSlotNameCache[nameKey]
+        if slot then return slot end
+    end
+    if C_Spell_GetSpellTexture then
+        local texture = C_Spell_GetSpellTexture(spellID)
+        if texture then
+            slot = actionSlotTextureCache[texture]
+            if slot then
+                actionSlotCache[spellID] = slot
+                if nameKey then
+                    actionSlotNameCache[nameKey] = slot
+                end
+                return slot
             end
         end
     end
@@ -873,9 +927,25 @@ function Display:UpdateCooldown(icon, spellID)
         return
     end
 
-    -- Check raw cooldown to filter GCD / very short durations
+    local actionSlot = GetActionSlotForSpell(spellID)
+
+    -- Prefer slot-based cooldown state when available; this matches the visible
+    -- action button more closely than spell-based secret cooldown data.
     local shouldShow = false
-    if C_Spell_GetSpellCooldown then
+    if actionSlot and C_ActionBar_GetActionCooldown then
+        local ok, cooldown = pcall(C_ActionBar_GetActionCooldown, actionSlot)
+        if ok and cooldown then
+            if cooldown.isActive ~= nil and not (issecretvalue and issecretvalue(cooldown.isActive)) then
+                shouldShow = cooldown.isActive == true
+            else
+                local startTime = cooldown.startTime or 0
+                local duration = cooldown.duration or 0
+                if not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration))) then
+                    shouldShow = startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION
+                end
+            end
+        end
+    elseif C_Spell_GetSpellCooldown then
         local ok, cooldown = pcall(C_Spell_GetSpellCooldown, spellID)
         if ok and cooldown then
             local startTime = cooldown.startTime or 0
@@ -897,6 +967,15 @@ function Display:UpdateCooldown(icon, spellID)
     end
 
     -- Prefer DurationObject path (secret-safe, available since build 66562)
+    if actionSlot and C_ActionBar_GetActionCooldownDuration and icon.cooldown.SetCooldownFromDurationObject then
+        local ok, durObj = pcall(C_ActionBar_GetActionCooldownDuration, actionSlot)
+        if ok and durObj then
+            icon.cooldown:SetCooldownFromDurationObject(durObj)
+            icon.cooldown:Show()
+            return
+        end
+    end
+
     if C_Spell_GetSpellCooldownDuration and icon.cooldown.SetCooldownFromDurationObject then
         local ok, durObj = pcall(C_Spell_GetSpellCooldownDuration, spellID)
         if ok and durObj then
@@ -945,6 +1024,8 @@ function Display:UpdateChargeCooldown(icon, spellID)
         return
     end
 
+    local actionSlot = GetActionSlotForSpell(spellID)
+
     -- Read charge info
     if not C_Spell_GetSpellCharges then
         icon.chargeCooldown:Hide()
@@ -984,6 +1065,15 @@ function Display:UpdateChargeCooldown(icon, spellID)
         icon.chargeCount:Show()
 
         -- Prefer DurationObject for the edge ring (secret-safe)
+        if actionSlot and C_ActionBar_GetActionChargeDuration and icon.chargeCooldown.SetCooldownFromDurationObject then
+            local durOk, durObj = pcall(C_ActionBar_GetActionChargeDuration, actionSlot)
+            if durOk and durObj then
+                icon.chargeCooldown:SetCooldownFromDurationObject(durObj)
+                icon.chargeCooldown:Show()
+                return
+            end
+        end
+
         if C_Spell_GetSpellChargeDuration and icon.chargeCooldown.SetCooldownFromDurationObject then
             local durOk, durObj = pcall(C_Spell_GetSpellChargeDuration, spellID)
             if durOk and durObj then
