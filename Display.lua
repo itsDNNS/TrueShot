@@ -932,20 +932,24 @@ function Display:UpdateCooldown(icon, spellID)
     -- Prefer slot-based cooldown state when available; this matches the visible
     -- action button more closely than spell-based secret cooldown data.
     local shouldShow = false
+    local actionBarResolved = false
     if actionSlot and C_ActionBar_GetActionCooldown then
         local ok, cooldown = pcall(C_ActionBar_GetActionCooldown, actionSlot)
         if ok and cooldown then
             if cooldown.isActive ~= nil and not (issecretvalue and issecretvalue(cooldown.isActive)) then
                 shouldShow = cooldown.isActive == true
+                actionBarResolved = true
             else
                 local startTime = cooldown.startTime or 0
                 local duration = cooldown.duration or 0
                 if not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration))) then
                     shouldShow = startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION
+                    actionBarResolved = true
                 end
             end
         end
-    elseif C_Spell_GetSpellCooldown then
+    end
+    if not actionBarResolved and C_Spell_GetSpellCooldown then
         local ok, cooldown = pcall(C_Spell_GetSpellCooldown, spellID)
         if ok and cooldown then
             local startTime = cooldown.startTime or 0
