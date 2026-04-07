@@ -307,6 +307,78 @@ function Probe:SecrecyAudit()
 end
 
 ------------------------------------------------------------------------
+-- Probe: aura read (validate actual aura data retrieval)
+------------------------------------------------------------------------
+
+local AURA_TEST_SPELLS = {
+    { id = 272790, names = { "Frenzy", "Raserei" }, note = "Barbed Shot stacks" },
+    { id = 118455, names = { "Beast Cleave", "Bestiale Spaltung" }, note = "AoE buff" },
+    { id = 19574,  names = { "Bestial Wrath", "Zorn des Wildtiers" }, note = "Burst buff" },
+}
+
+function Probe:AuraRead()
+    PrintHeader("aura read (C_UnitAuras.GetAuraDataBySpellName)")
+
+    if not C_UnitAuras or not C_UnitAuras.GetAuraDataBySpellName then
+        PrintResult("status", "C_UnitAuras.GetAuraDataBySpellName not available")
+        return
+    end
+
+    -- Try reading all known buff names
+    local anyFound = false
+    for _, spell in ipairs(AURA_TEST_SPELLS) do
+        for _, name in ipairs(spell.names) do
+            local ok, aura = pcall(C_UnitAuras.GetAuraDataBySpellName, "player", name)
+            if ok and aura then
+                anyFound = true
+                local stacks = aura.applications or 0
+                local remaining = aura.expirationTime and (aura.expirationTime - GetTime()) or 0
+                PrintResult(name, "stacks=" .. stacks
+                    .. " remaining=" .. string.format("%.1fs", remaining)
+                    .. " spellID=" .. tostring(aura.spellId)
+                    .. " secret=" .. SecretLabel(aura.applications))
+            elseif ok then
+                PrintResult(name, "nil (buff not active)")
+            else
+                PrintResult(name, "ERROR: " .. tostring(aura))
+            end
+        end
+    end
+
+    -- Also try reading cooldowns
+    print(" ")
+    PrintHeader("cooldown read (C_Spell.GetSpellCooldown)")
+    local cdSpells = {
+        { id = 19574,  name = "Bestial Wrath" },
+        { id = 217200, name = "Barbed Shot" },
+        { id = 34026,  name = "Kill Command" },
+        { id = 1264359,name = "Wild Thrash" },
+    }
+    for _, spell in ipairs(cdSpells) do
+        if C_Spell and C_Spell.GetSpellCooldown then
+            local ok, cd = pcall(C_Spell.GetSpellCooldown, spell.id)
+            if ok and cd then
+                local start = cd.startTime or 0
+                local dur = cd.duration or 0
+                PrintResult(spell.name, "start=" .. tostring(start)
+                    .. " dur=" .. tostring(dur)
+                    .. " startSecret=" .. SecretLabel(start)
+                    .. " durSecret=" .. SecretLabel(dur))
+            elseif ok then
+                PrintResult(spell.name, "nil")
+            else
+                PrintResult(spell.name, "ERROR: " .. tostring(cd))
+            end
+        end
+    end
+
+    if not anyFound then
+        print(" ")
+        print("|cffffcc00Keine Buffs aktiv. Cast Barbed Shot fuer Frenzy und fuehr nochmal aus.|r")
+    end
+end
+
+------------------------------------------------------------------------
 -- Probe: run all
 ------------------------------------------------------------------------
 
@@ -335,6 +407,8 @@ function Probe:HandleCommand(args)
         self:SpellCharges(spellID)
     elseif sub == "secrecy" then
         self:SecrecyAudit()
+    elseif sub == "aura" then
+        self:AuraRead()
     elseif sub == "all" then
         local spellID = tonumber(args:match("%S+%s+(%d+)"))
         self:RunAll(spellID)
@@ -344,6 +418,7 @@ function Probe:HandleCommand(args)
         print("  /ts probe plates   - Test C_NamePlate.GetNamePlates")
         print("  /ts probe charges [spellID]  - Test C_Spell.GetSpellCharges (default: Barbed Shot)")
         print("  /ts probe secrecy  - Audit per-spell aura/cooldown secrecy levels")
+        print("  /ts probe aura     - Read actual aura + cooldown data (cast Barbed Shot first)")
         print("  /ts probe all [spellID]      - Run all probes")
     else
         print("|cff00ff00[[TS Probe]|r Unknown probe: " .. sub .. ". Use /ts probe help")
