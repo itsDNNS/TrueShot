@@ -1,6 +1,6 @@
 # BM Rotation Reference
 
-Source: Gingi (top world Hunter) BM Guide for Midnight Season 1
+Source: Azortharion BM Guide for Midnight Season 1
 Video: https://youtu.be/GQiL-H8IZwA
 Supplementary: WCL analysis (40+ raid parses, 157 M+ parses), Icy Veins
 
