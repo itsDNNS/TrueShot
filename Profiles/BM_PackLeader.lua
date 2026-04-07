@@ -78,7 +78,8 @@ function Profile:OnSpellCast(spellID)
 
     elseif spellID == 1264359 then -- Wild Thrash
         s.lastWildThrashCast = GetTime()
-        s.lastCastWasKC = false
+        -- NOTE: Wild Thrash does NOT grant Nature's Ally.
+        -- Do NOT clear lastCastWasKC here. KC -> WT -> KC is invalid.
 
     elseif spellID == 34026 then -- Kill Command
         s.lastCastWasKC = true

@@ -158,7 +158,7 @@ Same as Pack Leader: press immediately, don't hold.
 | Trinket usage | External to rotation logic. |
 | Hunter's Mark | Passive/manual, not a queue decision. |
 | Barbed Shot charge timing vs BA priority | Would need focus + CD interaction modeling. AC handles this tradeoff. |
-| Wild Thrash as invalid Nature's Ally source | Cannot distinguish WT from other fillers in the KC weave check. Our last_cast_was_kc blacklist prevents double KC but doesn't verify the weave source. |
+| Wild Thrash as invalid Nature's Ally source | Handled: WT cast does not clear lastCastWasKC flag, so KC -> WT -> KC is correctly blocked by the anti-repeat blacklist. |
 
 ---
 
