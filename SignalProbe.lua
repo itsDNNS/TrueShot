@@ -324,27 +324,71 @@ function Probe:AuraRead()
         return
     end
 
-    -- Iterate ALL player buffs by index
     local anyFound = false
-    local TARGET_IDS = { [272790]=true, [118455]=true, [19574]=true, [190446]=true, [44544]=true, [48108]=true, [48107]=true }
-    print("  All player buffs:")
+
+    -- Method 1: C_UnitAuras.GetBuffDataByIndex
+    print("  Method 1: GetBuffDataByIndex")
     for i = 1, 40 do
         local ok, aura = pcall(C_UnitAuras.GetBuffDataByIndex, "player", i)
-        if not ok or not aura then break end
-        local name = aura.name or "?"
-        local sid = aura.spellId or 0
-        local stacks = aura.applications or 0
-        local remaining = aura.expirationTime and (aura.expirationTime - GetTime()) or 0
-        local nameSecret = SecretLabel(aura.name)
-        local stackSecret = SecretLabel(aura.applications)
-        local marker = TARGET_IDS[sid] and " <<<" or ""
-        print(string.format("    %2d: %s (%d) stacks=%s rem=%.1fs [name:%s stacks:%s]%s",
-            i, tostring(name), sid, tostring(stacks), remaining, nameSecret, stackSecret, marker))
-        anyFound = true
+        if not ok then
+            PrintResult("  index " .. i, "ERROR: " .. tostring(aura))
+            break
+        end
+        if aura == nil then break end
+        if IsSecret(aura) then
+            PrintResult("  index " .. i, "SECRET TABLE")
+            anyFound = true
+        else
+            local name = aura.name or "?"
+            local sid = aura.spellId or 0
+            local stacks = aura.applications or 0
+            PrintResult("  " .. i, tostring(name) .. " (" .. tostring(sid) .. ") stacks=" .. tostring(stacks)
+                .. " [nameS:" .. SecretLabel(aura.name) .. " stackS:" .. SecretLabel(aura.applications) .. "]")
+            anyFound = true
+        end
+    end
+    if not anyFound then print("    (nothing returned)") end
+
+    -- Method 2: legacy UnitBuff
+    print(" ")
+    print("  Method 2: UnitBuff (legacy)")
+    if UnitBuff then
+        for i = 1, 10 do
+            local ok, name, icon, count, dispelType, duration, expires, source, isStealable, nameplateShowPersonal, spellId = pcall(UnitBuff, "player", i)
+            if not ok then
+                PrintResult("  index " .. i, "ERROR: " .. tostring(name))
+                break
+            end
+            if name == nil then break end
+            PrintResult("  " .. i, tostring(name) .. " (" .. tostring(spellId) .. ") count=" .. tostring(count)
+                .. " [nameS:" .. SecretLabel(name) .. " countS:" .. SecretLabel(count) .. "]")
+            anyFound = true
+        end
+    else
+        print("    UnitBuff not available")
     end
 
-    if not anyFound then
-        print("    (no buffs found)")
+    -- Method 3: AuraUtil.ForEachAura
+    print(" ")
+    print("  Method 3: AuraUtil.ForEachAura")
+    if AuraUtil and AuraUtil.ForEachAura then
+        local count = 0
+        local ok, err = pcall(AuraUtil.ForEachAura, "player", "HELPFUL", nil, function(aura)
+            count = count + 1
+            if count <= 10 then
+                if IsSecret(aura) then
+                    PrintResult("  " .. count, "SECRET")
+                else
+                    PrintResult("  " .. count, tostring(aura.name) .. " (" .. tostring(aura.spellId) .. ")"
+                        .. " stacks=" .. tostring(aura.applications)
+                        .. " [S:" .. SecretLabel(aura.name) .. "]")
+                end
+            end
+        end)
+        if not ok then PrintResult("  error", tostring(err)) end
+        if count == 0 then print("    (nothing returned)") end
+    else
+        print("    AuraUtil.ForEachAura not available")
     end
 
     -- Also try reading cooldowns
