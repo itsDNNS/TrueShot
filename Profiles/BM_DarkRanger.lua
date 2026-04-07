@@ -167,12 +167,7 @@ function Profile:EvalCondition(cond)
     local s = self.state
 
     if cond.type == "ba_ready" then
-        -- Glow signal: BA glowing means Blizzard confirms it's ready
-        if TrueShot.Engine:IsSpellGlowing(466930) then
-            s.blackArrowReady = true
-            return true
-        end
-        -- Fallback: cast-event timer heuristic
+        -- Cast-event timer heuristic (glow is too aggressive for short-CD spells)
         if not s.blackArrowReady and s.lastBlackArrowCast > 0 then
             if (GetTime() - s.lastBlackArrowCast) >= BA_COOLDOWN then
                 s.blackArrowReady = true
@@ -189,11 +184,6 @@ function Profile:EvalCondition(cond)
         return remaining > 0 and remaining <= threshold
 
     elseif cond.type == "wa_available" then
-        -- Glow signal: WA glowing means Blizzard confirms it's available
-        if TrueShot.Engine:IsSpellGlowing(392060) then
-            s.wailingArrowAvailable = true
-            return true
-        end
         return s.wailingArrowAvailable
 
     elseif cond.type == "last_cast_was_kc" then
