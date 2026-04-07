@@ -425,6 +425,85 @@ function Probe:AuraRead()
 end
 
 ------------------------------------------------------------------------
+-- Probe: spell overlay (proc glow detection)
+------------------------------------------------------------------------
+
+local OVERLAY_SPELLS = {
+    -- Spells that glow when their proc is active
+    -- Hunter
+    { id = 34026,  name = "Kill Command",   proc = "Nature's Ally / reset" },
+    { id = 19574,  name = "Bestial Wrath",  proc = "ready" },
+    { id = 217200, name = "Barbed Shot",    proc = "charge ready" },
+    { id = 1264359,name = "Wild Thrash",    proc = "ready" },
+    { id = 466930, name = "Black Arrow",    proc = "ready / Withering Fire" },
+    { id = 392060, name = "Wailing Arrow",  proc = "available during BW" },
+    -- Frost Mage
+    { id = 44614,  name = "Flurry",         proc = "Brain Freeze" },
+    { id = 30455,  name = "Ice Lance",      proc = "Fingers of Frost" },
+    { id = 199786, name = "Glacial Spike",  proc = "Icicles full" },
+    -- Fire Mage
+    { id = 11366,  name = "Pyroblast",      proc = "Hot Streak" },
+    { id = 108853, name = "Fire Blast",     proc = "Heating Up / charge" },
+    -- Arcane Mage
+    { id = 5143,   name = "Arcane Missiles",proc = "Clearcasting" },
+    -- SV Hunter
+    { id = 259489, name = "Kill Command SV",proc = "reset" },
+    { id = 1261193,name = "Boomstick",      proc = "Takedown" },
+    -- Feral
+    { id = 22568,  name = "Ferocious Bite", proc = "Apex Predator" },
+    -- DH
+    { id = 162794, name = "Chaos Strike",   proc = "Meta / refund" },
+}
+
+function Probe:SpellOverlay()
+    PrintHeader("spell overlay / proc glow (C_SpellActivationOverlay)")
+
+    if not C_SpellActivationOverlay or not C_SpellActivationOverlay.IsSpellOverlayed then
+        PrintResult("status", "C_SpellActivationOverlay.IsSpellOverlayed not available")
+        PrintClassification("IMPOSSIBLE - API missing")
+        return
+    end
+
+    print(string.format("  %-20s %-7s %-8s %s", "Spell", "Glowing", "Secret?", "Proc"))
+    print("  " .. string.rep("-", 60))
+
+    local anyGlowing = false
+    for _, spell in ipairs(OVERLAY_SPELLS) do
+        local ok, result = pcall(C_SpellActivationOverlay.IsSpellOverlayed, spell.id)
+        if ok then
+            local glowing = result == true
+            local secretStr = SecretLabel(result)
+            if glowing then anyGlowing = true end
+            print(string.format("  %-20s %-7s %-8s %s",
+                spell.name, glowing and "YES" or "no", secretStr, spell.proc))
+        else
+            print(string.format("  %-20s ERROR: %s", spell.name, tostring(result)))
+        end
+    end
+
+    print(" ")
+    if anyGlowing then
+        PrintClassification("DIRECT - overlay glow is readable! Proc detection possible.")
+    else
+        print("  No procs active right now. Test during combat with active procs.")
+        print("  Also registering event listener for SPELL_ACTIVATION_OVERLAY_GLOW_SHOW...")
+    end
+
+    -- Register a temporary event listener to catch proc events
+    if not self._overlayFrame then
+        self._overlayFrame = CreateFrame("Frame")
+        self._overlayFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+        self._overlayFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE")
+        self._overlayFrame:SetScript("OnEvent", function(_, event, spellID)
+            local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID) or "?"
+            print("|cff00ff00[[TS Overlay]|r " .. event .. ": " .. tostring(name) .. " (" .. tostring(spellID) .. ")"
+                .. " secret=" .. SecretLabel(spellID))
+        end)
+        print("  Listener active - cast spells to see proc events. /reload to stop.")
+    end
+end
+
+------------------------------------------------------------------------
 -- Probe: run all
 ------------------------------------------------------------------------
 
@@ -455,6 +534,8 @@ function Probe:HandleCommand(args)
         self:SecrecyAudit()
     elseif sub == "aura" then
         self:AuraRead()
+    elseif sub == "overlay" then
+        self:SpellOverlay()
     elseif sub == "all" then
         local spellID = tonumber(args:match("%S+%s+(%d+)"))
         self:RunAll(spellID)
@@ -465,6 +546,7 @@ function Probe:HandleCommand(args)
         print("  /ts probe charges [spellID]  - Test C_Spell.GetSpellCharges (default: Barbed Shot)")
         print("  /ts probe secrecy  - Audit per-spell aura/cooldown secrecy levels")
         print("  /ts probe aura     - Read actual aura + cooldown data (cast Barbed Shot first)")
+        print("  /ts probe overlay  - Test proc glow detection (cast in combat to trigger procs)")
         print("  /ts probe all [spellID]      - Run all probes")
     else
         print("|cff00ff00[[TS Probe]|r Unknown probe: " .. sub .. ". Use /ts probe help")
