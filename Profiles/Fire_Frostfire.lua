@@ -20,6 +20,14 @@ local Profile = {
         { type = "BLACKLIST", spellID = 118 },     -- Polymorph
         { type = "BLACKLIST", spellID = 30449 },   -- Spellsteal
         { type = "BLACKLIST", spellID = 1459 },    -- Arcane Intellect
+
+        -- Hot Streak: PREFER Pyroblast when proc is active (glow detection)
+        {
+            type = "PREFER",
+            spellID = 11366, -- Pyroblast
+            reason = "Hot Streak",
+            condition = { type = "spell_glowing", spellID = 11366 },
+        },
     },
 }
 

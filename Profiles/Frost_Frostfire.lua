@@ -21,6 +21,14 @@ local Profile = {
         { type = "BLACKLIST", spellID = 30449 },   -- Spellsteal
         { type = "BLACKLIST", spellID = 1459 },    -- Arcane Intellect
 
+        -- Brain Freeze: PREFER Flurry when proc is active (glow detection)
+        {
+            type = "PREFER",
+            spellID = 44614, -- Flurry
+            reason = "Brain Freeze",
+            condition = { type = "spell_glowing", spellID = 44614 },
+        },
+
         -- Shatter combo: Ice Lance after Flurry (WCL: 66% natural, boost remaining 34%)
         {
             type = "PREFER",

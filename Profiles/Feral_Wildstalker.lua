@@ -31,6 +31,14 @@ local Profile = {
         -- Filter utility spells
         { type = "BLACKLIST", spellID = 106839 }, -- Skull Bash
 
+        -- Apex Predator: PREFER Ferocious Bite when proc is active (glow detection)
+        {
+            type = "PREFER",
+            spellID = 22568, -- Ferocious Bite
+            reason = "Apex Predator",
+            condition = { type = "spell_glowing", spellID = 22568 },
+        },
+
         -- Prefer Berserk during Tiger's Fury for maximum burst alignment
         {
             type = "PREFER",

@@ -21,6 +21,14 @@ local Profile = {
         { type = "BLACKLIST", spellID = 118 },     -- Polymorph
         { type = "BLACKLIST", spellID = 30449 },   -- Spellsteal
         { type = "BLACKLIST", spellID = 1459 },    -- Arcane Intellect
+
+        -- Clearcasting: PREFER Arcane Missiles when proc is active (glow detection)
+        {
+            type = "PREFER",
+            spellID = 5143, -- Arcane Missiles
+            reason = "Clearcasting",
+            condition = { type = "spell_glowing", spellID = 5143 },
+        },
     },
 }
 

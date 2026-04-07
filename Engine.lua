@@ -62,6 +62,37 @@ local function GetHostileCount()
 end
 
 ------------------------------------------------------------------------
+-- Spell overlay glow tracking (proc detection)
+------------------------------------------------------------------------
+
+local _glowingSpells = {}
+
+local _glowFrame = CreateFrame("Frame")
+_glowFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_SHOW")
+_glowFrame:RegisterEvent("SPELL_ACTIVATION_OVERLAY_GLOW_HIDE")
+_glowFrame:SetScript("OnEvent", function(_, event, spellID)
+    if not spellID or IsSecret(spellID) then return end
+    if event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
+        _glowingSpells[spellID] = true
+    else
+        _glowingSpells[spellID] = nil
+    end
+end)
+
+function Engine:IsSpellGlowing(spellID)
+    if _glowingSpells[spellID] then return true end
+    -- Fallback: poll IsSpellOverlayed for spells that might have been glowing before we loaded
+    if C_SpellActivationOverlay and C_SpellActivationOverlay.IsSpellOverlayed then
+        local ok, result = pcall(C_SpellActivationOverlay.IsSpellOverlayed, spellID)
+        if ok and result == true and not IsSecret(result) then
+            _glowingSpells[spellID] = true
+            return true
+        end
+    end
+    return false
+end
+
+------------------------------------------------------------------------
 -- Condition evaluator (generic conditions only)
 ------------------------------------------------------------------------
 
@@ -87,6 +118,9 @@ function Engine:EvalCondition(cond)
 
     elseif cond.type == "in_combat" then
         return UnitAffectingCombat("player")
+
+    elseif cond.type == "spell_glowing" then
+        return self:IsSpellGlowing(cond.spellID)
 
     elseif cond.type == "target_count" then
         local count = GetHostileCount()
