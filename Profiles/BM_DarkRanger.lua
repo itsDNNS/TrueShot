@@ -56,6 +56,8 @@ local Profile = {
         },
 
         -- During Withering Fire: Black Arrow is highest DPS priority
+        -- (WF window is only 10s - missing a BA cast is a bigger loss than
+        -- delaying a KC proc by one GCD, since the glow persists)
         {
             type = "PIN",
             spellID = 466930, -- Black Arrow
@@ -64,6 +66,39 @@ local Profile = {
                 type = "and",
                 left  = { type = "ba_ready" },
                 right = { type = "in_withering_fire" },
+            },
+        },
+
+        -- Buffed Kill Command: prio 1 outside Withering Fire when proc glow active
+        -- (Alpha Predator / Call of the Wild) - during WF, BA stays higher
+        {
+            type = "PIN",
+            spellID = 34026, -- Kill Command
+            reason = "KC Proc",
+            condition = {
+                type = "and",
+                left  = { type = "spell_glowing", spellID = 34026 },
+                right = {
+                    type = "and",
+                    left  = { type = "not", inner = { type = "last_cast_was_kc" } },
+                    right = { type = "not", inner = { type = "in_withering_fire" } },
+                },
+            },
+        },
+
+        -- Buffed KC during Withering Fire: still high prio, but after BA
+        {
+            type = "PREFER",
+            spellID = 34026, -- Kill Command
+            reason = "KC Proc (WF)",
+            condition = {
+                type = "and",
+                left  = { type = "spell_glowing", spellID = 34026 },
+                right = {
+                    type = "and",
+                    left  = { type = "not", inner = { type = "last_cast_was_kc" } },
+                    right = { type = "in_withering_fire" },
+                },
             },
         },
 

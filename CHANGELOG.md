@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.15.1 - 2026-04-07
+
+### Added
+- BM Dark Ranger / Pack Leader: Buffed Kill Command (proc glow) now pinned as priority 1
+- Dark Ranger: KC proc respects Withering Fire window (BA stays higher during WF)
+
 ## v0.15.0 - 2026-04-07
 
 ### Changed

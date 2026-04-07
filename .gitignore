@@ -11,3 +11,7 @@ SavedVariables/
 WTF/
 tasks/
 docs/specs/
+
+
+# Graphify knowledge graph (local only)
+graphify-out/

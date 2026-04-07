@@ -51,6 +51,19 @@ local Profile = {
             condition = { type = "bw_on_cd" },
         },
 
+        -- Buffed Kill Command: absolute prio 1 when proc glow active
+        -- (Alpha Predator / Call of the Wild) - highest single-target damage
+        {
+            type = "PIN",
+            spellID = 34026, -- Kill Command
+            reason = "KC Proc",
+            condition = {
+                type = "and",
+                left  = { type = "spell_glowing", spellID = 34026 },
+                right = { type = "not", inner = { type = "last_cast_was_kc" } },
+            },
+        },
+
         -- Nature's Ally: never Kill Command twice in a row
         {
             type = "BLACKLIST_CONDITIONAL",
