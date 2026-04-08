@@ -34,7 +34,7 @@ local DEFAULTS = {
     showAoeHint = true,
     showLoginMessage = false,
     showScorecard = true,
-    showHeartbeat = true,
+    showHeartbeat = false,
 }
 
 local optionCallbacks = {}

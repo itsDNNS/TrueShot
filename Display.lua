@@ -29,6 +29,7 @@ local displayedQueueState = { count = 0 }
 local pendingQueueState = { count = 0 }
 local pendingQueueTicks = 0
 local allowImmediateQueueUpdate = false
+local displayEnabled = false
 
 -- Committed metadata snapshot (persisted alongside displayedQueueState)
 local committedMeta = { source = "ac", reason = nil }
@@ -758,15 +759,53 @@ end
 
 local HEARTBEAT_BAR_COUNT = 30
 local HEARTBEAT_TIME_WINDOW = 15
-local HEARTBEAT_BAR_WIDTH = 3
-local HEARTBEAT_BAR_HEIGHT_RATIO = 0.8
+local HEARTBEAT_BAR_WIDTH = 4
+local HEARTBEAT_BAR_HEIGHT_RATIO = 0.5
 local HEARTBEAT_FREEZE_DURATION = 5
 
--- Parent to UIParent so heartbeat survives container:Hide() for post-combat freeze
-local heartbeatFrame = CreateFrame("Frame", nil, UIParent)
+local heartbeatHasCustomPos = false
+
+-- Heartbeat strip frame (independent of container for separate positioning)
+local heartbeatFrame = CreateFrame("Frame", "TrueShotHeartbeat", UIParent, "BackdropTemplate")
 heartbeatFrame:SetSize(200, 20)
-heartbeatFrame:SetPoint("TOPLEFT", container, "BOTTOMLEFT", 0, -4)
+heartbeatFrame:SetBackdrop({
+    bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+})
+heartbeatFrame:SetBackdropColor(0.05, 0.05, 0.05, 0.7)
+heartbeatFrame:SetMovable(true)
+heartbeatFrame:SetClampedToScreen(true)
+heartbeatFrame:RegisterForDrag("LeftButton")
+heartbeatFrame:SetScript("OnDragStart", function(self)
+    if not TrueShot.GetOpt("locked") then
+        self:StartMoving()
+    end
+end)
+heartbeatFrame:SetScript("OnDragStop", function(self)
+    self:StopMovingOrSizing()
+    local point, _, relPoint, x, y = self:GetPoint()
+    TrueShot.SetOpt("heartbeatPosPoint", point)
+    TrueShot.SetOpt("heartbeatPosRelPoint", relPoint)
+    TrueShot.SetOpt("heartbeatPosX", x)
+    TrueShot.SetOpt("heartbeatPosY", y)
+    heartbeatHasCustomPos = true
+end)
 heartbeatFrame:Hide()
+
+local function RestoreHeartbeatPosition()
+    local point = TrueShot.GetOpt("heartbeatPosPoint")
+    local relPoint = TrueShot.GetOpt("heartbeatPosRelPoint")
+    local x = TrueShot.GetOpt("heartbeatPosX")
+    local y = TrueShot.GetOpt("heartbeatPosY")
+    if point and relPoint and x and y then
+        heartbeatFrame:ClearAllPoints()
+        heartbeatFrame:SetPoint(point, UIParent, relPoint, x, y)
+        heartbeatHasCustomPos = true
+    else
+        heartbeatHasCustomPos = false
+    end
+end
+
+RestoreHeartbeatPosition()
 
 local heartbeatThrottle = 0
 
@@ -831,15 +870,22 @@ local function UpdateHeartbeatStrip()
     local stripWidth = HEARTBEAT_BAR_COUNT * (HEARTBEAT_BAR_WIDTH + 1)
     heartbeatFrame:SetSize(stripWidth, barHeight)
 
-    heartbeatFrame:ClearAllPoints()
-    local orient = TrueShot.GetOpt("orientation") or "LEFT"
-    if orient == "UP" then
-        heartbeatFrame:SetPoint("TOP", container, "BOTTOM", 0, -4)
-    elseif orient == "DOWN" then
-        heartbeatFrame:SetPoint("BOTTOM", container, "TOP", 0, 4)
-    else
-        heartbeatFrame:SetPoint("TOPLEFT", container, "BOTTOMLEFT", 0, -4)
+    -- Only set default position if user hasn't dragged it somewhere custom
+    if not heartbeatHasCustomPos then
+        heartbeatFrame:ClearAllPoints()
+        local orient = TrueShot.GetOpt("orientation") or "LEFT"
+        local anchorBelow = (aoeHintIcon and aoeHintIcon:IsShown()) and aoeHintIcon or container
+        if orient == "UP" then
+            heartbeatFrame:SetPoint("TOP", anchorBelow, "BOTTOM", 0, -4)
+        elseif orient == "DOWN" then
+            heartbeatFrame:SetPoint("BOTTOM", anchorBelow, "TOP", 0, 4)
+        else
+            heartbeatFrame:SetPoint("TOPLEFT", anchorBelow, "BOTTOMLEFT", 0, -4)
+        end
     end
+
+    -- Match container scale
+    heartbeatFrame:SetScale(TrueShot.GetOpt("overlayScale") or 1.0)
 
     local referenceTime = inCombat and now or (heartbeatFrozenUntil - HEARTBEAT_FREEZE_DURATION)
 
@@ -866,10 +912,11 @@ local function UpdateHeartbeatStrip()
         end
     end
 
+    heartbeatFrame:EnableMouse(not TrueShot.GetOpt("locked"))
     heartbeatFrame:Show()
 end
 
--- Self-update for post-combat freeze (runs only when container is hidden but heartbeat visible)
+-- Self-update: keeps heartbeat alive when container is hidden (post-combat freeze)
 heartbeatFrame:SetScript("OnUpdate", function(_, elapsed)
     heartbeatThrottle = heartbeatThrottle + elapsed
     if heartbeatThrottle < 0.1 then return end
@@ -1506,8 +1553,6 @@ local function OnUpdateHandler(_, elapsed)
     UpdateHeartbeatStrip()
 end
 
-local displayEnabled = false
-
 function Display:Enable()
     if displayEnabled then return end
     displayEnabled = true
@@ -1526,8 +1571,7 @@ function Display:Disable()
     self:ResetQueueStabilization()
     ResetStoredQueue(displayedQueueState)
     container:SetScript("OnUpdate", nil)
-    -- Don't hide heartbeatFrame here -- let UpdateHeartbeatStrip manage its
-    -- own freeze/hide lifecycle for post-combat mini-replay
+    -- Don't kill heartbeat here -- self-OnUpdate handles post-combat freeze
     container:Hide()
     if aoeHintIcon then aoeHintIcon:Hide() end
 end
