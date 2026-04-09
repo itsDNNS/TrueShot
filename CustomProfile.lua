@@ -85,26 +85,68 @@ local function DeepCopy(orig)
     return copy
 end
 
+local function EnsureLibraryFormat(profileId)
+    if not TrueShotDB.customProfiles then return end
+    local stored = TrueShotDB.customProfiles[profileId]
+    if not stored then return end
+    -- Already in library format
+    if stored.profiles and stored.activeIndex then return end
+    -- Old format: wrap in library
+    stored.name = stored.name or "Custom"
+    TrueShotDB.customProfiles[profileId] = {
+        activeIndex = 1,
+        profiles = { stored },
+    }
+end
+
 function CustomProfile.GetCustomData(profileId)
     if not TrueShotDB.customProfiles then return nil end
-    return TrueShotDB.customProfiles[profileId]
+    EnsureLibraryFormat(profileId)
+    local library = TrueShotDB.customProfiles[profileId]
+    if not library or not library.profiles then return nil end
+    local idx = library.activeIndex or 1
+    return library.profiles[idx]
 end
 
 function CustomProfile.HasCustomData(profileId)
-    return CustomProfile.GetCustomData(profileId) ~= nil
+    if not TrueShotDB.customProfiles then return false end
+    EnsureLibraryFormat(profileId)
+    local library = TrueShotDB.customProfiles[profileId]
+    return library and library.profiles and #library.profiles > 0
 end
 
 function CustomProfile.SaveCustomData(profileId, data)
     TrueShotDB.customProfiles = TrueShotDB.customProfiles or {}
+    EnsureLibraryFormat(profileId)
     data.schemaVersion = SCHEMA_VERSION
-    TrueShotDB.customProfiles[profileId] = data
+    local library = TrueShotDB.customProfiles[profileId]
+    if library and library.profiles then
+        local idx = library.activeIndex or 1
+        library.profiles[idx] = data
+    else
+        data.name = data.name or "Custom"
+        TrueShotDB.customProfiles[profileId] = {
+            activeIndex = 1,
+            profiles = { data },
+        }
+    end
 end
 
 function CustomProfile.DeleteCustomData(profileId)
-    if TrueShotDB.customProfiles then
+    if not TrueShotDB.customProfiles then return end
+    EnsureLibraryFormat(profileId)
+    local library = TrueShotDB.customProfiles[profileId]
+    if library and library.profiles then
+        local idx = library.activeIndex or 1
+        table.remove(library.profiles, idx)
+        if #library.profiles == 0 then
+            TrueShotDB.customProfiles[profileId] = nil
+        else
+            library.activeIndex = math.min(idx, #library.profiles)
+        end
+    else
         TrueShotDB.customProfiles[profileId] = nil
     end
-    -- Clear custom condition schemas for this profile
     CustomProfile.ClearCustomConditions(profileId)
 end
 
@@ -118,12 +160,84 @@ function CustomProfile.ClearCustomConditions(profileId)
 end
 
 ------------------------------------------------------------------------
+-- Profile Library API
+------------------------------------------------------------------------
+
+function CustomProfile.GetProfileLibrary(profileId)
+    if not TrueShotDB.customProfiles then return nil end
+    EnsureLibraryFormat(profileId)
+    return TrueShotDB.customProfiles[profileId]
+end
+
+function CustomProfile.GetActiveIndex(profileId)
+    local library = CustomProfile.GetProfileLibrary(profileId)
+    if not library then return nil end
+    return library.activeIndex or 1
+end
+
+function CustomProfile.SetActiveIndex(profileId, index)
+    local library = CustomProfile.GetProfileLibrary(profileId)
+    if not library or not library.profiles then return false end
+    if index < 1 or index > #library.profiles then return false end
+    library.activeIndex = index
+    CustomProfile.InvalidateWrapper(profileId)
+    return true
+end
+
+function CustomProfile.AddToLibrary(profileId, data)
+    TrueShotDB.customProfiles = TrueShotDB.customProfiles or {}
+    EnsureLibraryFormat(profileId)
+    data.schemaVersion = SCHEMA_VERSION
+    data.name = data.name or ("Import " .. date("%Y-%m-%d %H:%M"))
+    local library = TrueShotDB.customProfiles[profileId]
+    if not library then
+        TrueShotDB.customProfiles[profileId] = {
+            activeIndex = 1,
+            profiles = { data },
+        }
+        return 1
+    end
+    library.profiles[#library.profiles + 1] = data
+    return #library.profiles
+end
+
+function CustomProfile.DeleteFromLibrary(profileId, index)
+    local library = CustomProfile.GetProfileLibrary(profileId)
+    if not library or not library.profiles then return false end
+    if index < 1 or index > #library.profiles then return false end
+    table.remove(library.profiles, index)
+    if #library.profiles == 0 then
+        TrueShotDB.customProfiles[profileId] = nil
+        CustomProfile.ClearCustomConditions(profileId)
+        return true
+    end
+    if library.activeIndex >= index then
+        library.activeIndex = math.max(1, library.activeIndex - 1)
+    end
+    return true
+end
+
+function CustomProfile.RenameInLibrary(profileId, index, newName)
+    local library = CustomProfile.GetProfileLibrary(profileId)
+    if not library or not library.profiles or not library.profiles[index] then return false end
+    library.profiles[index].name = newName
+    return true
+end
+
+function CustomProfile.GetLibraryCount(profileId)
+    local library = CustomProfile.GetProfileLibrary(profileId)
+    if not library or not library.profiles then return 0 end
+    return #library.profiles
+end
+
+------------------------------------------------------------------------
 -- Fork built-in profile into editable custom data
 ------------------------------------------------------------------------
 
 function CustomProfile.ForkProfile(baseProfile)
     local data = {
         schemaVersion = SCHEMA_VERSION,
+        name = "Custom",
         baseProfileId = baseProfile.id,
         baseProfileVersion = baseProfile.version or 0,
         rules = DeepCopy(baseProfile.rules),
