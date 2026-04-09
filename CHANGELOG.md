@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.19.0 - 2026-04-09
+
+### Added
+- **Visual Rule Builder** (`/ts rules`): In-game UI for creating and editing profile rules without writing Lua
+  - Two-panel split frame: scrollable rule list with spell icons and type badges, detail editor with dropdowns and text inputs
+  - Condition builder with nested AND/OR/NOT tree, inline dropdowns, and visual connecting lines
+  - Custom state variables with cast-event triggers and automatic timer resets
+  - Preset condition templates (Spell Proc, AoE, Burst Mode, Combat Opening, Spell Charges)
+  - Fork model: customize built-in profiles with full ownership, reset to built-in at any time
+  - Drift detection when built-in profiles are updated after customization
+  - Spell validation warnings for unknown spells (non-blocking)
+- Condition schema registry for profile-specific condition discovery
+- Profile version tracking for drift detection
+- "Open Rule Builder" button in Settings > Profiles tab
+
 ## v0.18.0 - 2026-04-08
 
 ### Changed
