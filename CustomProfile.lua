@@ -177,6 +177,15 @@ function CustomProfile.AddToLibrary(profileId, data)
         }
         return 1
     end
+    -- Check for existing profile with same name: overwrite instead of duplicate
+    if data.name then
+        for i, existing in ipairs(library.profiles) do
+            if existing.name == data.name then
+                library.profiles[i] = data
+                return i
+            end
+        end
+    end
     library.profiles[#library.profiles + 1] = data
     return #library.profiles
 end
