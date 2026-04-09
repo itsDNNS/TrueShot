@@ -1005,15 +1005,21 @@ function Display:UpdateContainerSize()
 
     reasonText:ClearAllPoints()
     phaseText:ClearAllPoints()
+    local showWhyAboveIcon = TrueShot.GetOpt("showWhyAboveIcon") and true or false
     if isVertical then
         reasonText:SetPoint("LEFT", container, "RIGHT", 4, -8)
         reasonText:SetJustifyH("LEFT")
         phaseText:SetPoint("LEFT", container, "RIGHT", 4, 8)
         phaseText:SetJustifyH("LEFT")
     else
-        reasonText:SetPoint("TOP", container, "BOTTOM", 0, -2)
+        if showWhyAboveIcon then
+            reasonText:SetPoint("BOTTOM", container, "TOP", 0, 2)
+            phaseText:SetPoint("BOTTOM", container, "TOP", 0, 14)
+        else
+            reasonText:SetPoint("TOP", container, "BOTTOM", 0, -2)
+            phaseText:SetPoint("BOTTOM", container, "TOP", 0, 2)
+        end
         reasonText:SetJustifyH("CENTER")
-        phaseText:SetPoint("BOTTOM", container, "TOP", 0, 2)
         phaseText:SetJustifyH("CENTER")
     end
 

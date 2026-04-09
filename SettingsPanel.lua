@@ -308,10 +308,25 @@ local function CreateFeaturesPanel()
         rangeDesc, "showWhyOverlay"
     )
 
+    local whyPosCheck, whyPosDesc = CreateCheckbox(
+        panel, "Show reason above icon",
+        "When enabled, the recommendation reason is shown above the primary icon instead of below it.",
+        whyDesc, "showWhyAboveIcon"
+    )
+
+    local function SyncWhyPositionToggle()
+        local enabled = TrueShot.GetOpt("showWhyOverlay") and true or false
+        whyPosCheck:SetEnabled(enabled)
+        whyPosCheck.Text:SetTextColor(enabled and 1 or 0.5, enabled and 0.82 or 0.5, enabled and 0 or 0.5)
+        whyPosDesc:SetTextColor(enabled and 1 or 0.5, enabled and 1 or 0.5, enabled and 1 or 0.5)
+    end
+
+    whyCheck:HookScript("OnClick", SyncWhyPositionToggle)
+
     local aoeHintCheck, aoeHintDesc = CreateCheckbox(
         panel, "Show AoE hint icon",
         "Display a secondary icon below the primary icon when an AoE ability is recommended (e.g. Wild Thrash at 2+ targets).",
-        whyDesc, "showAoeHint"
+        whyPosDesc, "showAoeHint"
     )
 
     local glowCheck, glowDesc = CreateCheckbox(
@@ -343,6 +358,8 @@ local function CreateFeaturesPanel()
         keybindCheck.sync()
         rangeCheck.sync()
         whyCheck.sync()
+        whyPosCheck.sync()
+        SyncWhyPositionToggle()
         aoeHintCheck.sync()
         glowCheck.sync()
         scorecardCheck.sync()
