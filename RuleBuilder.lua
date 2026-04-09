@@ -740,14 +740,20 @@ function RuleBuilder:OpenReadOnly(profile)
 
     _mainFrame._profileLabel:SetText("|cffaaaaaa" .. (profile.displayName or profileId) .. " (read-only)|r")
 
-    -- Load built-in rules as read-only
-    _editingData = {
-        rules = profile.rules or {},
-        stateVarDefs = {},
-        triggers = {},
-        rotationalSpells = profile.rotationalSpells or {},
-    }
-    _isCustomized = false
+    -- Load custom data if available, otherwise built-in rules
+    local customData = CustomProfile.GetCustomData(profileId)
+    if customData then
+        _editingData = DeepCopy(customData)
+        _isCustomized = true
+    else
+        _editingData = {
+            rules = DeepCopy(profile.rules or {}),
+            stateVarDefs = {},
+            triggers = {},
+            rotationalSpells = DeepCopy(profile.rotationalSpells or {}),
+        }
+        _isCustomized = false
+    end
     _isReadOnly = true
 
     _selectedIndex = nil
@@ -1515,7 +1521,7 @@ function RuleBuilder:ShowRuleEditor(index)
     self:ClearRightPanel()
     ClearEditorFrames()
 
-    if not _rightPanel or not _editingData or not _isCustomized then return end
+    if not _rightPanel or not _editingData or (not _isCustomized and not _isReadOnly) then return end
     local rules = _editingData.rules
     local rule = rules and rules[index]
     if not rule then return end
@@ -1744,7 +1750,7 @@ function RuleBuilder:ShowStateVarEditor(varIndex)
     self:ClearRightPanel()
     ClearEditorFrames()
 
-    if not _rightPanel or not _editingData or not _isCustomized then return end
+    if not _rightPanel or not _editingData or (not _isCustomized and not _isReadOnly) then return end
     local defs = _editingData.stateVarDefs
     local def = defs and defs[varIndex]
     if not def then return end

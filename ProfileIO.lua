@@ -1377,8 +1377,26 @@ local function RefreshBrowser()
     local activeProfile = TrueShot.Engine and TrueShot.Engine.activeProfile
     local activeBaseId = activeProfile and (activeProfile._baseProfile or activeProfile).id
 
+    local INDENT = 16  -- pixels per depth level
     local rowIndex = 0
     local lastRow = nil
+    local lastRowDepth = 0
+
+    -- Place a row at the given depth, anchoring vertically below lastRow
+    -- but with absolute X offset from scrollChild based on depth
+    local function PlaceRow(row, depth, spacing)
+        row:ClearAllPoints()
+        if lastRow then
+            -- Anchor below previous row, but compute X offset relative to scrollChild
+            local xOffset = depth * INDENT
+            local prevX = lastRowDepth * INDENT
+            row:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", xOffset - prevX, spacing or -1)
+        else
+            row:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", depth * INDENT, 0)
+        end
+        lastRow = row
+        lastRowDepth = depth
+    end
 
     for _, className in ipairs(BROWSER_CLASS_ORDER) do
         local classData = tree[className]
@@ -1387,16 +1405,11 @@ local function RefreshBrowser()
             local classKey = "class:" .. className
             local classCollapsed = _collapsed[classKey]
 
-            -- Class header row
+            -- Class header row (depth 0)
             rowIndex = rowIndex + 1
             if rowIndex > MAX_ROWS then break end
             local classRow = rowPool[rowIndex]
-            classRow:ClearAllPoints()
-            if lastRow then
-                classRow:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 0, -2)
-            else
-                classRow:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 0, 0)
-            end
+            PlaceRow(classRow, 0, -4)
             local classArrow = classCollapsed and "|cffaaaaaa>|r " or "|cffaaaaaav|r "
             classRow._text:SetText(classArrow .. "|cff" .. color .. className .. "|r")
             classRow._text:SetFontObject(GameFontNormal)
@@ -1405,7 +1418,6 @@ local function RefreshBrowser()
                 RefreshBrowser()
             end)
             classRow:Show()
-            lastRow = classRow
 
             if not classCollapsed then
                 local specs = SortedKeys(classData)
@@ -1414,12 +1426,11 @@ local function RefreshBrowser()
                     local specKey = "spec:" .. className .. "." .. specName
                     local specCollapsed = _collapsed[specKey]
 
-                    -- Spec header row
+                    -- Spec header row (depth 1)
                     rowIndex = rowIndex + 1
                     if rowIndex > MAX_ROWS then break end
                     local specRow = rowPool[rowIndex]
-                    specRow:ClearAllPoints()
-                    specRow:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 16, -1)
+                    PlaceRow(specRow, 1)
                     local specArrow = specCollapsed and "|cffaaaaaa>|r " or "|cffaaaaaav|r "
                     specRow._text:SetText(specArrow .. "|cffdddddd" .. specName .. "|r")
                     specRow._text:SetFontObject(GameFontHighlight)
@@ -1428,7 +1439,6 @@ local function RefreshBrowser()
                         RefreshBrowser()
                     end)
                     specRow:Show()
-                    lastRow = specRow
 
                     if not specCollapsed then
                         local heroes = SortedKeys(specData)
@@ -1436,12 +1446,11 @@ local function RefreshBrowser()
                             local heroKey = "hero:" .. className .. "." .. specName .. "." .. heroName
                             local heroCollapsed = _collapsed[heroKey]
 
-                            -- Hero talent header row
+                            -- Hero talent header row (depth 2)
                             rowIndex = rowIndex + 1
                             if rowIndex > MAX_ROWS then break end
                             local heroRow = rowPool[rowIndex]
-                            heroRow:ClearAllPoints()
-                            heroRow:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 16, -1)
+                            PlaceRow(heroRow, 2)
                             local heroArrow = heroCollapsed and "|cffaaaaaa>|r " or "|cffaaaaaav|r "
                             heroRow._text:SetText(heroArrow .. "|cffbbbbbb" .. heroName .. "|r")
                             heroRow._text:SetFontObject(GameFontHighlightSmall)
@@ -1450,7 +1459,6 @@ local function RefreshBrowser()
                                 RefreshBrowser()
                             end)
                             heroRow:Show()
-                            lastRow = heroRow
 
                             if not heroCollapsed then
                                 local profiles = specData[heroName]
@@ -1458,8 +1466,7 @@ local function RefreshBrowser()
                                     rowIndex = rowIndex + 1
                                     if rowIndex > MAX_ROWS then break end
                                     local profileRow = rowPool[rowIndex]
-                                    profileRow:ClearAllPoints()
-                                    profileRow:SetPoint("TOPLEFT", lastRow, "BOTTOMLEFT", 16, -1)
+                                    PlaceRow(profileRow, 3)
 
                                     local name = profile.displayName or heroName
                                     local isActive = (profile.id == activeBaseId)
@@ -1501,7 +1508,6 @@ local function RefreshBrowser()
 
                                     profileRow:SetScript("OnClick", nil) -- no toggle on leaf rows
                                     profileRow:Show()
-                                    lastRow = profileRow
                                 end
                             end
                         end
