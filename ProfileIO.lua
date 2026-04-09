@@ -1119,7 +1119,11 @@ local function CreateImportFrame()
         end
 
         local profileId = _pendingData.profileId
-        CustomProfile.SaveCustomData(profileId, normalized)
+        -- Add to library (does not overwrite existing profiles)
+        normalized.name = _pendingData.displayName or ("Import " .. date("%H:%M"))
+        local newIndex = CustomProfile.AddToLibrary(profileId, normalized)
+        -- Switch to the newly imported profile
+        CustomProfile.SetActiveIndex(profileId, newIndex)
         CustomProfile.InvalidateWrapper(profileId)
         CustomProfile.RegisterCustomConditions(profileId, normalized.stateVarDefs)
 
