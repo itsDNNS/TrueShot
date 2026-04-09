@@ -36,6 +36,7 @@ local Profile = {
     displayName = "SV Pack Leader",
     specID = 255,
     -- No markerSpell: this profile serves as the SV fallback
+    version = 1,
 
     state = {
         lastTakedownCast = 0,
@@ -251,3 +252,20 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Hunter.SV.PackLeader", {
+        { id = "takedown_just_cast", label = "Takedown Just Cast",
+          params = { { field = "seconds", fieldType = "number", default = 2, label = "Seconds window" } } },
+        { id = "takedown_active",    label = "Takedown Active",          params = {} },
+        { id = "kc_cast_in_takedown", label = "KC Cast In Takedown",     params = {} },
+        { id = "boomstick_on_cd",    label = "Boomstick On Cooldown",    params = {} },
+        { id = "in_melee_range",     label = "In Melee Range",           params = {} },
+        { id = "wfb_charges",        label = "Wildfire Bomb Charges",
+          params = {
+              { field = "op",    fieldType = "string", default = "==", label = "Operator" },
+              { field = "value", fieldType = "number", default = 2,    label = "Charge count" },
+          } },
+        { id = "flamefang_ready",    label = "Flamefang Pitch Ready",    params = {} },
+    })
+end

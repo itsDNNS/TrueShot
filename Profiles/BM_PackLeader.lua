@@ -16,6 +16,7 @@ local Profile = {
     specID = 253,
     -- No markerSpell: this profile serves as the BM fallback
     -- when Dark Ranger's Black Arrow marker does not match
+    version = 1,
 
     state = {
         lastBWCast = 0,
@@ -171,3 +172,11 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Hunter.BM.PackLeader", {
+        { id = "last_cast_was_kc", label = "Last Cast Was Kill Command", params = {} },
+        { id = "bw_on_cd",        label = "Bestial Wrath On Cooldown",  params = {} },
+        { id = "wt_on_cd",        label = "Wild Thrash On Cooldown",    params = {} },
+    })
+end

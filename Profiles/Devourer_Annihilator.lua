@@ -16,6 +16,7 @@ local Profile = {
     displayName = "Devourer Annihilator",
     specID = 1480,
     markerSpell = 1253304, -- Voidfall (Annihilator exclusive keystone)
+    version = 1,
 
     state = {
         lastVoidMetaCast = 0,
@@ -95,3 +96,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("DemonHunter.Devourer.Annihilator", {
+        { id = "in_void_meta", label = "In Void Metamorphosis", params = {} },
+    })
+end

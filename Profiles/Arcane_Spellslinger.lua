@@ -10,6 +10,7 @@ local Profile = {
     displayName = "Arcane Spellslinger",
     specID = 62,
     -- No markerSpell: fallback when Sunfury's Arcane Pulse not detected
+    version = 1,
 
     state = {
         surgeWindowUntil = 0,
@@ -67,3 +68,9 @@ function Profile:GetPhase()
 end
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Mage.Arcane.Spellslinger", {
+        { id = "in_surge", label = "In Arcane Surge", params = {} },
+    })
+end

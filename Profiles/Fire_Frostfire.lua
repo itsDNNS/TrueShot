@@ -10,6 +10,7 @@ local Profile = {
     displayName = "Fire Frostfire",
     specID = 63,
     -- No markerSpell: fallback when Sunfury's Emberwing Heatwave not detected
+    version = 1,
 
     state = {
         lastCombustionCast = 0,
@@ -71,3 +72,9 @@ function Profile:GetPhase()
 end
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Mage.Fire.Frostfire", {
+        { id = "in_combustion", label = "In Combustion", params = {} },
+    })
+end

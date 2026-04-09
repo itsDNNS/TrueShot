@@ -11,6 +11,7 @@ local Profile = {
     -- Inverted from Fire/Arcane pattern: Frostfire is the unmarked fallback
     -- because it covers 100% of top parses. This marker ensures Spellslinger
     -- only activates for the rare players who actually talent into it.
+    version = 1,
 
     state = {},
 
@@ -40,3 +41,8 @@ function Profile:GetPhase()
 end
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Mage.Frost.Spellslinger", {
+    })
+end

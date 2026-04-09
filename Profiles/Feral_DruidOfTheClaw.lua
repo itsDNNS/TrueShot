@@ -20,6 +20,7 @@ local Profile = {
     displayName = "Feral Druid of the Claw",
     specID = 103,
     markerSpell = 441583, -- Ravage (Druid of the Claw exclusive)
+    version = 1,
 
     state = {
         tigersFuryUntil = 0,
@@ -126,3 +127,10 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Druid.Feral.DruidOfTheClaw", {
+        { id = "in_tigers_fury", label = "In Tiger's Fury", params = {} },
+        { id = "in_berserk",     label = "In Berserk",      params = {} },
+    })
+end

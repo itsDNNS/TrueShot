@@ -31,6 +31,7 @@ local Profile = {
     specID = 254,
     -- No markerSpell: this profile serves as the MM fallback
     -- when Dark Ranger's Black Arrow marker does not match
+    version = 1,
 
     state = {
         lastRapidFireCast = 0,
@@ -225,3 +226,18 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Hunter.MM.Sentinel", {
+        { id = "trueshot_ready",    label = "Trueshot Ready",    params = {} },
+        { id = "trueshot_just_cast", label = "Trueshot Just Cast",
+          params = { { field = "seconds", fieldType = "number", default = 2, label = "Seconds window" } } },
+        { id = "trueshot_active",   label = "Trueshot Active",   params = {} },
+        { id = "rapid_fire_recent", label = "Rapid Fire Recent",
+          params = { { field = "seconds", fieldType = "number", default = 3, label = "Seconds window" } } },
+        { id = "volley_recent",     label = "Volley Recent",
+          params = { { field = "seconds", fieldType = "number", default = 2, label = "Seconds window" } } },
+        { id = "chakram_ready",     label = "Moonlight Chakram Ready", params = {} },
+        { id = "aimed_shot_ready",  label = "Aimed Shot Ready",  params = {} },
+    })
+end

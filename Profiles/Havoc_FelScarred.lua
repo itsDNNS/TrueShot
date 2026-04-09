@@ -14,6 +14,7 @@ local Profile = {
     displayName = "Havoc Fel-Scarred",
     specID = 577,
     markerSpell = 452402, -- Demonsurge (Fel-Scarred exclusive)
+    version = 1,
 
     state = {
         lastMetaCast = 0,
@@ -112,3 +113,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("DemonHunter.Havoc.FelScarred", {
+        { id = "in_meta_window", label = "In Metamorphosis Window", params = {} },
+    })
+end

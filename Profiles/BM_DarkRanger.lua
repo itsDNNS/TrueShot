@@ -16,6 +16,7 @@ local Profile = {
     displayName = "BM Dark Ranger",
     specID = 253,
     markerSpell = 466930, -- Black Arrow (Dark Ranger exclusive)
+    version = 1,
 
     rotationalSpells = {
         [34026]   = true, -- Kill Command
@@ -283,3 +284,16 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Hunter.BM.DarkRanger", {
+        { id = "ba_ready",           label = "Black Arrow Ready",        params = {} },
+        { id = "in_withering_fire",  label = "In Withering Fire",        params = {} },
+        { id = "wf_ending",          label = "Withering Fire Ending",
+          params = { { field = "seconds", fieldType = "number", default = 4, label = "Seconds remaining" } } },
+        { id = "wa_available",       label = "Wailing Arrow Available",  params = {} },
+        { id = "last_cast_was_kc",   label = "Last Cast Was Kill Command", params = {} },
+        { id = "bw_on_cd",           label = "Bestial Wrath On Cooldown", params = {} },
+        { id = "wt_on_cd",           label = "Wild Thrash On Cooldown",  params = {} },
+    })
+end

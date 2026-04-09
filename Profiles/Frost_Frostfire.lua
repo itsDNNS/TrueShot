@@ -10,6 +10,7 @@ local Profile = {
     displayName = "Frost Frostfire",
     specID = 64,
     -- No markerSpell: default Frost profile (100% meta usage)
+    version = 1,
 
     state = {
         frozenOrbActiveUntil = 0,
@@ -94,3 +95,10 @@ function Profile:GetPhase()
 end
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Mage.Frost.Frostfire", {
+        { id = "frozen_orb_active",    label = "Frozen Orb Active",      params = {} },
+        { id = "last_cast_was_flurry", label = "Last Cast Was Flurry",   params = {} },
+    })
+end

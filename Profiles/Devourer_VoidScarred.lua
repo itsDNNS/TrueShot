@@ -18,6 +18,7 @@ local Profile = {
     -- No markerSpell: serves as Devourer fallback when Annihilator's
     -- Voidfall marker does not match. Demonsurge (452402) is shared
     -- with Havoc Fel-Scarred so it cannot be used as an exclusive marker.
+    version = 1,
 
     state = {
         lastVoidMetaCast = 0,
@@ -97,3 +98,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("DemonHunter.Devourer.VoidScarred", {
+        { id = "in_void_meta", label = "In Void Metamorphosis", params = {} },
+    })
+end

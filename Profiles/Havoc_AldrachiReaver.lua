@@ -14,6 +14,7 @@ local Profile = {
     displayName = "Havoc Aldrachi Reaver",
     specID = 577,
     markerSpell = 442294, -- Reaver's Glaive (Aldrachi Reaver exclusive)
+    version = 1,
 
     state = {
         lastMetaCast = 0,
@@ -112,3 +113,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("DemonHunter.Havoc.AldrachiReaver", {
+        { id = "in_meta_window", label = "In Metamorphosis Window", params = {} },
+    })
+end

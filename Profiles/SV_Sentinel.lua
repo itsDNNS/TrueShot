@@ -35,6 +35,7 @@ local Profile = {
     displayName = "SV Sentinel",
     specID = 255,
     markerSpell = SPELLS.MoonlightChakram,
+    version = 1,
 
     rotationalSpells = {
         [1250646] = true, -- Takedown
@@ -248,3 +249,16 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Hunter.SV.Sentinel", {
+        { id = "takedown_just_cast", label = "Takedown Just Cast",
+          params = { { field = "seconds", fieldType = "number", default = 5, label = "Seconds window" } } },
+        { id = "takedown_active",   label = "Takedown Active",           params = {} },
+        { id = "boomstick_on_cd",   label = "Boomstick On Cooldown",     params = {} },
+        { id = "in_melee_range",    label = "In Melee Range",            params = {} },
+        { id = "wfb_near_cap",      label = "Wildfire Bomb Near Cap",
+          params = { { field = "seconds", fieldType = "number", default = 5, label = "Seconds to recharge" } } },
+        { id = "flamefang_ready",   label = "Flamefang Pitch Ready",     params = {} },
+    })
+end

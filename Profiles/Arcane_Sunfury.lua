@@ -11,6 +11,7 @@ local Profile = {
     displayName = "Arcane Sunfury",
     specID = 62,
     markerSpell = 1241462, -- Arcane Pulse (Sunfury exclusive, high M+ usage)
+    version = 1,
 
     state = {
         surgeWindowUntil = 0,
@@ -88,3 +89,10 @@ function Profile:GetPhase()
 end
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Mage.Arcane.Sunfury", {
+        { id = "in_surge",      label = "In Arcane Surge",       params = {} },
+        { id = "touch_active",  label = "Touch of the Magi Active", params = {} },
+    })
+end

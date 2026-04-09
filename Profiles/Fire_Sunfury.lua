@@ -14,6 +14,7 @@ local Profile = {
     displayName = "Fire Sunfury",
     specID = 63,
     markerSpell = 1250508, -- Emberwing Heatwave (Sunfury exclusive)
+    version = 1,
 
     state = {
         lastCombustionCast = 0,
@@ -110,3 +111,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Mage.Fire.Sunfury", {
+        { id = "in_combustion", label = "In Combustion", params = {} },
+    })
+end

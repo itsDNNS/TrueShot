@@ -18,6 +18,7 @@ local Profile = {
     displayName = "Balance Keeper of the Grove",
     specID = 102,
     markerSpell = 428731, -- Harmony of the Grove (Keeper exclusive)
+    version = 1,
 
     state = {
         burstUntil = 0,
@@ -97,3 +98,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Druid.Balance.KeeperOfTheGrove", {
+        { id = "in_burst", label = "In Burst Window", params = {} },
+    })
+end

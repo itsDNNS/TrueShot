@@ -32,6 +32,7 @@ local Profile = {
     displayName = "MM Dark Ranger",
     specID = 254,
     markerSpell = SPELLS.BlackArrow,
+    version = 1,
 
     rotationalSpells = {
         [466930]  = true, -- Black Arrow
@@ -292,3 +293,19 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Hunter.MM.DarkRanger", {
+        { id = "ba_ready",          label = "Black Arrow Ready",       params = {} },
+        { id = "in_withering_fire", label = "In Withering Fire",       params = {} },
+        { id = "wa_available",      label = "Wailing Arrow Available", params = {} },
+        { id = "trueshot_ready",    label = "Trueshot Ready",          params = {} },
+        { id = "trueshot_just_cast", label = "Trueshot Just Cast",
+          params = { { field = "seconds", fieldType = "number", default = 2, label = "Seconds window" } } },
+        { id = "trueshot_active",   label = "Trueshot Active",         params = {} },
+        { id = "rapid_fire_recent", label = "Rapid Fire Recent",
+          params = { { field = "seconds", fieldType = "number", default = 3, label = "Seconds window" } } },
+        { id = "volley_recent",     label = "Volley Recent",
+          params = { { field = "seconds", fieldType = "number", default = 2, label = "Seconds window" } } },
+    })
+end

@@ -18,6 +18,7 @@ local Profile = {
     displayName = "Balance Elune's Chosen",
     specID = 102,
     markerSpell = 424058, -- Boundless Moonlight (Elune's Chosen exclusive)
+    version = 1,
 
     state = {
         burstUntil = 0,
@@ -97,3 +98,9 @@ end
 ------------------------------------------------------------------------
 
 Engine:RegisterProfile(Profile)
+
+if TrueShot.CustomProfile then
+    TrueShot.CustomProfile.RegisterConditionSchema("Druid.Balance.ElunesChosen", {
+        { id = "in_burst", label = "In Burst Window", params = {} },
+    })
+end
