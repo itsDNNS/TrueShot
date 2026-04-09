@@ -1297,7 +1297,7 @@ function RuleBuilder:ShowRuleEditor(index)
     if not rule then return end
 
     local profileId = GetProfileId()
-    local rightWidth = _rightPanel:GetWidth()
+    local rightWidth = math.max(_rightPanel:GetWidth(), FRAME_WIDTH - LEFT_PANEL_WIDTH - 26)
 
     -- Scroll frame for right panel content
     local scrollFrame = CreateFrame("ScrollFrame", NextDropdownName("TrueShotRBRScroll_"), _rightPanel, "UIPanelScrollFrameTemplate")
@@ -1497,11 +1497,19 @@ function RuleBuilder:ShowRuleEditor(index)
     condArea:SetHeight(math.max(treeHeight or 30, 30))
 
     ----------------------------------------------------------------
-    -- Update scroll child height to fit all content
+    -- Update scroll child height: rough estimate, then measure post-layout
     ----------------------------------------------------------------
-    -- Rough estimate: header + type dd + spell dd + manual + reason + condition
     local totalHeight = 24 + 40 + 40 + 26 + 40 + 30 + (treeHeight or 30) + 60
     scrollChild:SetHeight(math.max(totalHeight, 200))
+    -- Post-layout measurement for accurate scroll height
+    C_Timer.After(0, function()
+        if not scrollChild:GetParent() then return end
+        local top = scrollChild:GetTop()
+        local bottom = condArea:GetBottom()
+        if top and bottom then
+            scrollChild:SetHeight(math.max(top - bottom + 40, 200))
+        end
+    end)
 end
 
 ------------------------------------------------------------------------
@@ -1517,7 +1525,7 @@ function RuleBuilder:ShowStateVarEditor(varIndex)
     local def = defs and defs[varIndex]
     if not def then return end
 
-    local rightWidth = _rightPanel:GetWidth()
+    local rightWidth = math.max(_rightPanel:GetWidth(), FRAME_WIDTH - LEFT_PANEL_WIDTH - 26)
 
     -- Scroll container
     local scrollFrame = CreateFrame("ScrollFrame", NextDropdownName("TrueShotRBVarScroll_"), _rightPanel, "UIPanelScrollFrameTemplate")
@@ -1792,6 +1800,14 @@ function RuleBuilder:ShowStateVarEditor(varIndex)
     ----------------------------------------------------------------
     local estHeight = 24 + 16 + 26 + 16 + 26 + 50 + 36 + 20 + 30 + (#myTriggers * (TRIG_ROW_H + 4)) + 50
     scrollChild:SetHeight(math.max(estHeight, 300))
+    C_Timer.After(0, function()
+        if not scrollChild:GetParent() then return end
+        local top = scrollChild:GetTop()
+        local bottom = addTrigBtn:GetBottom()
+        if top and bottom then
+            scrollChild:SetHeight(math.max(top - bottom + 30, 300))
+        end
+    end)
 end
 
 ------------------------------------------------------------------------
@@ -1807,7 +1823,7 @@ function RuleBuilder:ShowTriggerEditor(varIndex, trigIndex)
     local trig = _editingData.triggers and _editingData.triggers[trigIndex]
     if not def or not trig then return end
 
-    local rightWidth = _rightPanel:GetWidth()
+    local rightWidth = math.max(_rightPanel:GetWidth(), FRAME_WIDTH - LEFT_PANEL_WIDTH - 26)
     local profileId = GetProfileId()
 
     local scrollFrame = CreateFrame("ScrollFrame", NextDropdownName("TrueShotRBTrigScroll_"), _rightPanel, "UIPanelScrollFrameTemplate")
@@ -2088,4 +2104,12 @@ function RuleBuilder:ShowTriggerEditor(varIndex, trigIndex)
     ----------------------------------------------------------------
     local estHeight = 24 + 26 + 16 + 50 + 26 + 16 + 30 + 16 + 30 + 16 + 30 + 50 + 30 + 40
     scrollChild:SetHeight(math.max(estHeight, 300))
+    C_Timer.After(0, function()
+        if not scrollChild:GetParent() then return end
+        local top = scrollChild:GetTop()
+        local bottom = btnRow:GetBottom()
+        if top and bottom then
+            scrollChild:SetHeight(math.max(top - bottom + 30, 300))
+        end
+    end)
 end
