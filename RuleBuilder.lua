@@ -15,7 +15,7 @@ local FRAME_WIDTH = 780
 local FRAME_HEIGHT = 520
 local LEFT_PANEL_WIDTH = 280
 local RULE_ROW_HEIGHT = 28
-local MAX_RULE_ROWS = 40
+local MAX_RULE_ROWS = 80  -- generous cap; profiles rarely exceed 20 rules
 
 local TYPE_COLORS = {
     PIN                  = { r = 1.0, g = 0.4, b = 0.4 },
@@ -598,6 +598,8 @@ function RuleBuilder:UpdateButtonStates()
     _mainFrame._addVarBtn:SetShown(_isCustomized)
 end
 
+local _hintText = nil  -- reusable hint FontString
+
 function RuleBuilder:ClearRightPanel()
     -- Clear all children of the right panel
     if not _rightPanel then return end
@@ -606,15 +608,25 @@ function RuleBuilder:ClearRightPanel()
         child:Hide()
         child:SetParent(nil)
     end
+    -- Hide reusable hint
+    if _hintText then _hintText:Hide() end
 
     if not _isCustomized then
-        local hint = _rightPanel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
-        hint:SetPoint("CENTER")
-        hint:SetText("Read-only view.\nClick 'Customize' to edit.")
+        if not _hintText then
+            _hintText = _rightPanel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
+        end
+        _hintText:ClearAllPoints()
+        _hintText:SetPoint("CENTER", _rightPanel, "CENTER")
+        _hintText:SetText("Read-only view.\nClick 'Customize' to edit.")
+        _hintText:Show()
     elseif not _selectedIndex and not _selectedVarIndex then
-        local hint = _rightPanel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
-        hint:SetPoint("CENTER")
-        hint:SetText("Select a rule or state variable to edit,\nor add a new one.")
+        if not _hintText then
+            _hintText = _rightPanel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
+        end
+        _hintText:ClearAllPoints()
+        _hintText:SetPoint("CENTER", _rightPanel, "CENTER")
+        _hintText:SetText("Select a rule or state variable to edit,\nor add a new one.")
+        _hintText:Show()
     end
 end
 
@@ -1288,7 +1300,7 @@ function RuleBuilder:ShowRuleEditor(index)
     local rightWidth = _rightPanel:GetWidth()
 
     -- Scroll frame for right panel content
-    local scrollFrame = CreateFrame("ScrollFrame", "TrueShotRBRightScroll", _rightPanel, "UIPanelScrollFrameTemplate")
+    local scrollFrame = CreateFrame("ScrollFrame", NextDropdownName("TrueShotRBRScroll_"), _rightPanel, "UIPanelScrollFrameTemplate")
     TrackFrame(scrollFrame)
     scrollFrame:SetPoint("TOPLEFT", _rightPanel, "TOPLEFT", 0, 0)
     scrollFrame:SetPoint("BOTTOMRIGHT", _rightPanel, "BOTTOMRIGHT", -22, 0)
