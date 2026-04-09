@@ -58,7 +58,10 @@ local _mainFrame = nil
 local _leftScrollChild = nil
 local _rightPanel = nil
 local _ruleRows = {}
+local _stateVarRows = {}
+local _sectionHeaders = {}  -- left panel section header labels
 local _selectedIndex = nil
+local _selectedVarIndex = nil  -- index into stateVarDefs, or nil
 local _editingData = nil  -- the custom data being edited
 local _isCustomized = false
 local _editorFrames = {}  -- tracked frames for editor cleanup
@@ -350,20 +353,93 @@ local function CreateRuleRow(parent, index)
     return row
 end
 
+local function CreateStateVarRow(parent, index)
+    local row = CreateFrame("Button", nil, parent)
+    row:SetSize(LEFT_PANEL_WIDTH - 22, RULE_ROW_HEIGHT)
+    row:EnableMouse(true)
+
+    local highlight = row:CreateTexture(nil, "BACKGROUND")
+    highlight:SetAllPoints()
+    highlight:SetColorTexture(1, 1, 1, 0.08)
+    highlight:Hide()
+    row._highlight = highlight
+
+    local selected = row:CreateTexture(nil, "BACKGROUND")
+    selected:SetAllPoints()
+    selected:SetColorTexture(0.5, 0.3, 0.7, 0.2)
+    selected:Hide()
+    row._selected = selected
+
+    -- Type badge (var type abbreviation)
+    local badge = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    badge:SetPoint("LEFT", row, "LEFT", 4, 0)
+    badge:SetWidth(30)
+    badge:SetJustifyH("LEFT")
+    row._badge = badge
+
+    -- Var name
+    local nameText = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    nameText:SetPoint("LEFT", badge, "RIGHT", 4, 0)
+    nameText:SetPoint("RIGHT", row, "RIGHT", -18, 0)
+    nameText:SetJustifyH("LEFT")
+    nameText:SetWordWrap(false)
+    row._nameText = nameText
+
+    -- Delete button
+    local delBtn = CreateFrame("Button", nil, row)
+    delBtn:SetSize(14, 14)
+    delBtn:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+    local delTex = delBtn:CreateTexture(nil, "ARTWORK")
+    delTex:SetAllPoints()
+    delTex:SetColorTexture(0.8, 0.2, 0.2, 0.6)
+    delBtn:SetScript("OnClick", function()
+        RuleBuilder:DeleteStateVar(index)
+    end)
+    row._delBtn = delBtn
+
+    row:SetScript("OnEnter", function() highlight:Show() end)
+    row:SetScript("OnLeave", function() highlight:Hide() end)
+    row:SetScript("OnClick", function()
+        RuleBuilder:SelectStateVar(index)
+    end)
+
+    row:Hide()
+    return row
+end
+
 ------------------------------------------------------------------------
 -- Rule List Rendering
 ------------------------------------------------------------------------
 
+local SECTION_HEADER_HEIGHT = 22
+
+local function GetOrCreateSectionHeader(key, parent, text)
+    if not _sectionHeaders[key] then
+        local hdr = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+        hdr:SetText(text)
+        _sectionHeaders[key] = hdr
+    end
+    return _sectionHeaders[key]
+end
+
 function RuleBuilder:RefreshRuleList()
     local rules = _editingData and _editingData.rules or {}
+    local vars  = _editingData and _editingData.stateVarDefs or {}
 
-    -- Ensure enough rows
+    ----------------------------------------------------------------
+    -- Section: Rules
+    ----------------------------------------------------------------
+    local rulesHeader = GetOrCreateSectionHeader("rules", _leftScrollChild, "|cffaaaaaa Rules|r")
+    rulesHeader:SetPoint("TOPLEFT", _leftScrollChild, "TOPLEFT", 4, 0)
+    rulesHeader:Show()
+
+    -- Ensure enough rule rows
     while #_ruleRows < math.min(#rules, MAX_RULE_ROWS) do
         local idx = #_ruleRows + 1
         _ruleRows[idx] = CreateRuleRow(_leftScrollChild, idx)
     end
 
-    -- Update rows
+    -- Update rule rows
     for i = 1, MAX_RULE_ROWS do
         local row = _ruleRows[i]
         if not row then break end
@@ -379,14 +455,12 @@ function RuleBuilder:RefreshRuleList()
             row._icon:SetTexture(spellIcon)
             row._nameText:SetText(spellName .. (rule.reason and (" - " .. rule.reason) or ""))
 
-            -- Selection state
             if i == _selectedIndex then
                 row._selected:Show()
             else
                 row._selected:Hide()
             end
 
-            -- Show/hide reorder buttons based on customization state
             if _isCustomized then
                 row._upBtn:SetShown(i > 1)
                 row._downBtn:SetShown(i < #rules)
@@ -398,15 +472,63 @@ function RuleBuilder:RefreshRuleList()
             end
 
             row:ClearAllPoints()
-            row:SetPoint("TOPLEFT", _leftScrollChild, "TOPLEFT", 0, -(i - 1) * RULE_ROW_HEIGHT)
+            row:SetPoint("TOPLEFT", _leftScrollChild, "TOPLEFT", 0, -(SECTION_HEADER_HEIGHT + (i - 1) * RULE_ROW_HEIGHT))
             row:Show()
         else
             row:Hide()
         end
     end
 
-    -- Update scroll child height
-    _leftScrollChild:SetHeight(math.max(1, #rules * RULE_ROW_HEIGHT))
+    local rulesSectionHeight = SECTION_HEADER_HEIGHT + #rules * RULE_ROW_HEIGHT
+
+    ----------------------------------------------------------------
+    -- Section: State Variables
+    ----------------------------------------------------------------
+    local varsHeader = GetOrCreateSectionHeader("vars", _leftScrollChild, "|cffaaaaaa State Variables|r")
+    varsHeader:ClearAllPoints()
+    varsHeader:SetPoint("TOPLEFT", _leftScrollChild, "TOPLEFT", 4, -(rulesSectionHeight + 6))
+    varsHeader:Show()
+
+    -- Ensure enough state var rows
+    while #_stateVarRows < #vars do
+        local idx = #_stateVarRows + 1
+        _stateVarRows[idx] = CreateStateVarRow(_leftScrollChild, idx)
+    end
+
+    local VAR_TYPE_SHORT = { boolean = "BOL", number = "NUM", timestamp = "TS" }
+
+    for i = 1, #_stateVarRows do
+        local row = _stateVarRows[i]
+        if i <= #vars then
+            local def = vars[i]
+            local abbr = VAR_TYPE_SHORT[def.varType] or "?"
+            row._badge:SetText("|cff8888ff" .. abbr .. "|r")
+            row._nameText:SetText(def.label or def.name or "?")
+
+            if i == _selectedVarIndex then
+                row._selected:Show()
+            else
+                row._selected:Hide()
+            end
+
+            if _isCustomized then
+                row._delBtn:Show()
+            else
+                row._delBtn:Hide()
+            end
+
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", _leftScrollChild, "TOPLEFT", 0,
+                -(rulesSectionHeight + 6 + SECTION_HEADER_HEIGHT + (i - 1) * RULE_ROW_HEIGHT))
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+
+    local varsSectionHeight = SECTION_HEADER_HEIGHT + #vars * RULE_ROW_HEIGHT
+    local totalHeight = rulesSectionHeight + 6 + varsSectionHeight + 8
+    _leftScrollChild:SetHeight(math.max(1, totalHeight))
 end
 
 ------------------------------------------------------------------------
@@ -460,6 +582,7 @@ function RuleBuilder:Open()
     end
 
     _selectedIndex = nil
+    _selectedVarIndex = nil
     self:RefreshRuleList()
     self:UpdateButtonStates()
     self:ClearRightPanel()
@@ -488,10 +611,10 @@ function RuleBuilder:ClearRightPanel()
         local hint = _rightPanel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
         hint:SetPoint("CENTER")
         hint:SetText("Read-only view.\nClick 'Customize' to edit.")
-    elseif not _selectedIndex then
+    elseif not _selectedIndex and not _selectedVarIndex then
         local hint = _rightPanel:CreateFontString(nil, "ARTWORK", "GameFontDisable")
         hint:SetPoint("CENTER")
-        hint:SetText("Select a rule to edit,\nor add a new one.")
+        hint:SetText("Select a rule or state variable to edit,\nor add a new one.")
     end
 end
 
@@ -509,6 +632,7 @@ function RuleBuilder:OnCustomize()
     _editingData = customData
     _isCustomized = true
     _selectedIndex = nil
+    _selectedVarIndex = nil
     self:RefreshRuleList()
     self:UpdateButtonStates()
     self:ClearRightPanel()
@@ -555,8 +679,39 @@ end
 
 function RuleBuilder:SelectRule(index)
     _selectedIndex = index
+    _selectedVarIndex = nil
     self:RefreshRuleList()
     self:ShowRuleEditor(index)
+end
+
+function RuleBuilder:SelectStateVar(index)
+    _selectedVarIndex = index
+    _selectedIndex = nil
+    self:RefreshRuleList()
+    self:ShowStateVarEditor(index)
+end
+
+function RuleBuilder:DeleteStateVar(index)
+    if not _editingData or not _isCustomized then return end
+    -- Capture varName before removing the def
+    local varName = (_editingData.stateVarDefs[index] or {}).name
+    table.remove(_editingData.stateVarDefs, index)
+    -- Remove all triggers for the deleted var
+    if varName then
+        local triggers = _editingData.triggers or {}
+        for i = #triggers, 1, -1 do
+            if triggers[i].varName == varName then
+                table.remove(triggers, i)
+            end
+        end
+    end
+    if _selectedVarIndex == index then
+        _selectedVarIndex = nil
+        self:ClearRightPanel()
+    elseif _selectedVarIndex and _selectedVarIndex > index then
+        _selectedVarIndex = _selectedVarIndex - 1
+    end
+    self:RefreshRuleList()
 end
 
 function RuleBuilder:MoveRule(index, direction)
@@ -603,7 +758,18 @@ function RuleBuilder:OnAddRule()
 end
 
 function RuleBuilder:OnAddStateVar()
-    -- Placeholder: Task 8 implements the state variable editor
+    if not _editingData or not _isCustomized then return end
+    local newVar = {
+        name    = "var" .. (#_editingData.stateVarDefs + 1),
+        label   = "New Variable",
+        varType = "boolean",
+        default = false,
+    }
+    table.insert(_editingData.stateVarDefs, newVar)
+    _selectedVarIndex = #_editingData.stateVarDefs
+    _selectedIndex = nil
+    self:RefreshRuleList()
+    self:ShowStateVarEditor(_selectedVarIndex)
 end
 
 ------------------------------------------------------------------------
@@ -1300,4 +1466,573 @@ function RuleBuilder:ShowRuleEditor(index)
     -- Rough estimate: header + type dd + spell dd + manual + reason + condition
     local totalHeight = 24 + 40 + 40 + 26 + 40 + 30 + (treeHeight or 30) + 60
     scrollChild:SetHeight(math.max(totalHeight, 200))
+end
+
+------------------------------------------------------------------------
+-- ShowStateVarEditor - right panel for a selected state variable
+------------------------------------------------------------------------
+
+function RuleBuilder:ShowStateVarEditor(varIndex)
+    self:ClearRightPanel()
+    ClearEditorFrames()
+
+    if not _rightPanel or not _editingData or not _isCustomized then return end
+    local defs = _editingData.stateVarDefs
+    local def = defs and defs[varIndex]
+    if not def then return end
+
+    local rightWidth = _rightPanel:GetWidth()
+
+    -- Scroll container
+    local scrollFrame = CreateFrame("ScrollFrame", NextDropdownName("TrueShotRBVarScroll_"), _rightPanel, "UIPanelScrollFrameTemplate")
+    TrackFrame(scrollFrame)
+    scrollFrame:SetPoint("TOPLEFT", _rightPanel, "TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", _rightPanel, "BOTTOMRIGHT", -22, 0)
+
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetWidth(rightWidth - 30)
+    scrollChild:SetHeight(1)
+    scrollFrame:SetScrollChild(scrollChild)
+
+    local function Rerender()
+        RuleBuilder:ShowStateVarEditor(varIndex)
+    end
+
+    ----------------------------------------------------------------
+    -- Section header
+    ----------------------------------------------------------------
+    local hdr = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    hdr:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 4, 0)
+    hdr:SetText("State Variable #" .. varIndex)
+
+    ----------------------------------------------------------------
+    -- Name (identifier)
+    ----------------------------------------------------------------
+    local nameLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    nameLabel:SetPoint("TOPLEFT", hdr, "BOTTOMLEFT", 0, -10)
+    nameLabel:SetText("Name (ID):")
+
+    local nameEdit = CreateFrame("EditBox", nil, scrollChild, "InputBoxTemplate")
+    TrackFrame(nameEdit)
+    nameEdit:SetSize(180, 20)
+    nameEdit:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -2)
+    nameEdit:SetAutoFocus(false)
+    nameEdit:SetText(def.name or "")
+
+    local nameHint = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    nameHint:SetPoint("TOPLEFT", nameEdit, "BOTTOMLEFT", 0, -2)
+    nameHint:SetText("|cff888888Alphanumeric + underscore, used as condition ID|r")
+
+    local function ApplyName()
+        local raw = nameEdit:GetText() or ""
+        -- Strip invalid chars: only a-z A-Z 0-9 _
+        local clean = raw:gsub("[^%w_]", "")
+        if clean == "" then clean = "var" .. varIndex end
+        def.name = clean
+        nameEdit:SetText(clean)
+        RuleBuilder:RefreshRuleList()
+    end
+    nameEdit:SetScript("OnEnterPressed", function(self) ApplyName(); self:ClearFocus() end)
+    nameEdit:SetScript("OnEditFocusLost", ApplyName)
+
+    ----------------------------------------------------------------
+    -- Label (display name)
+    ----------------------------------------------------------------
+    local labelLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    labelLabel:SetPoint("TOPLEFT", nameHint, "BOTTOMLEFT", 0, -10)
+    labelLabel:SetText("Label:")
+
+    local labelEdit = CreateFrame("EditBox", nil, scrollChild, "InputBoxTemplate")
+    TrackFrame(labelEdit)
+    labelEdit:SetSize(220, 20)
+    labelEdit:SetPoint("TOPLEFT", labelLabel, "BOTTOMLEFT", 0, -2)
+    labelEdit:SetAutoFocus(false)
+    labelEdit:SetText(def.label or "")
+
+    local function ApplyLabel()
+        local text = labelEdit:GetText() or ""
+        def.label = (text ~= "") and text or def.name
+        RuleBuilder:RefreshRuleList()
+    end
+    labelEdit:SetScript("OnEnterPressed", function(self) ApplyLabel(); self:ClearFocus() end)
+    labelEdit:SetScript("OnEditFocusLost", ApplyLabel)
+
+    ----------------------------------------------------------------
+    -- Type dropdown
+    ----------------------------------------------------------------
+    local typeLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    typeLabel:SetPoint("TOPLEFT", labelEdit, "BOTTOMLEFT", 0, -10)
+    typeLabel:SetText("Type:")
+
+    local VAR_TYPES = { "boolean", "number", "timestamp" }
+    local typeDd = CreateFrame("Frame", NextDropdownName("TrueShotRBVarType_"), scrollChild, "UIDropDownMenuTemplate")
+    TrackFrame(typeDd)
+    typeDd:SetPoint("TOPLEFT", typeLabel, "BOTTOMLEFT", -16, -2)
+    UIDropDownMenu_SetWidth(typeDd, 120)
+
+    UIDropDownMenu_Initialize(typeDd, function()
+        for _, vt in ipairs(VAR_TYPES) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = vt
+            info.checked = (def.varType == vt)
+            info.func = function()
+                def.varType = vt
+                -- Reset default to a sane value for the new type
+                if vt == "boolean" then
+                    def.default = false
+                elseif vt == "number" then
+                    def.default = 0
+                else
+                    def.default = 0
+                end
+                UIDropDownMenu_SetText(typeDd, vt)
+                Rerender()
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+    UIDropDownMenu_SetText(typeDd, def.varType or "boolean")
+
+    ----------------------------------------------------------------
+    -- Default value (adapts to type)
+    ----------------------------------------------------------------
+    local defLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    defLabel:SetPoint("TOPLEFT", typeDd, "BOTTOMLEFT", 16, -8)
+    defLabel:SetText("Default:")
+
+    local lastAnchorAfterDefault = defLabel
+
+    if def.varType == "boolean" then
+        local defChk = CreateFrame("CheckButton", nil, scrollChild, "UICheckButtonTemplate")
+        TrackFrame(defChk)
+        defChk:SetSize(22, 22)
+        defChk:SetPoint("TOPLEFT", defLabel, "BOTTOMLEFT", 0, -2)
+        defChk:SetChecked(def.default == true)
+        defChk:SetScript("OnClick", function(self)
+            def.default = self:GetChecked()
+        end)
+        lastAnchorAfterDefault = defChk
+    else
+        local defEdit = CreateFrame("EditBox", nil, scrollChild, "InputBoxTemplate")
+        TrackFrame(defEdit)
+        defEdit:SetSize(80, 20)
+        defEdit:SetPoint("TOPLEFT", defLabel, "BOTTOMLEFT", 0, -2)
+        defEdit:SetAutoFocus(false)
+        defEdit:SetNumeric(false)
+        defEdit:SetText(tostring(def.default or 0))
+        local function ApplyDefault()
+            local val = tonumber(defEdit:GetText())
+            if val then def.default = val end
+        end
+        defEdit:SetScript("OnEnterPressed", function(self) ApplyDefault(); self:ClearFocus() end)
+        defEdit:SetScript("OnEditFocusLost", ApplyDefault)
+        lastAnchorAfterDefault = defEdit
+    end
+
+    ----------------------------------------------------------------
+    -- Divider + Triggers section header
+    ----------------------------------------------------------------
+    local trigDivider = scrollChild:CreateTexture(nil, "ARTWORK")
+    trigDivider:SetHeight(1)
+    trigDivider:SetPoint("TOPLEFT", lastAnchorAfterDefault, "BOTTOMLEFT", 0, -12)
+    trigDivider:SetPoint("RIGHT", scrollChild, "RIGHT", -8, 0)
+    trigDivider:SetColorTexture(0.3, 0.3, 0.3, 0.8)
+
+    local trigHeader = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    trigHeader:SetPoint("TOPLEFT", trigDivider, "BOTTOMLEFT", 0, -6)
+    trigHeader:SetText("Triggers")
+
+    ----------------------------------------------------------------
+    -- Trigger list for this var
+    ----------------------------------------------------------------
+    local triggers = _editingData.triggers or {}
+    local myTriggers = {}
+    local myTriggerOrigIdx = {}
+    for i, t in ipairs(triggers) do
+        if t.varName == def.name then
+            local n = #myTriggers + 1
+            myTriggers[n] = t
+            myTriggerOrigIdx[n] = i
+        end
+    end
+
+    local TRIG_ROW_H = 26
+    local lastTrigAnchor = trigHeader
+    local lastTrigOffset = -8
+
+    for ti, trig in ipairs(myTriggers) do
+        local origIdx = myTriggerOrigIdx[ti]
+
+        local trigRow = CreateFrame("Frame", nil, scrollChild, "BackdropTemplate")
+        TrackFrame(trigRow)
+        trigRow:SetBackdrop({
+            bgFile = "Interface\\Buttons\\WHITE8x8",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            edgeSize = 10,
+            insets = { left = 2, right = 2, top = 2, bottom = 2 },
+        })
+        trigRow:SetBackdropColor(0.1, 0.1, 0.15, 0.8)
+        trigRow:SetBackdropBorderColor(0.25, 0.25, 0.25, 1)
+        trigRow:SetSize(rightWidth - 50, TRIG_ROW_H)
+        trigRow:SetPoint("TOPLEFT", lastTrigAnchor, "BOTTOMLEFT", 0, lastTrigOffset)
+
+        -- Spell icon
+        local sIcon, sName = GetSpellDisplay(trig.spellID)
+        local iconTex = trigRow:CreateTexture(nil, "ARTWORK")
+        iconTex:SetSize(18, 18)
+        iconTex:SetPoint("LEFT", trigRow, "LEFT", 4, 0)
+        iconTex:SetTexture(sIcon)
+
+        -- Summary text
+        local valStr
+        if def.varType == "boolean" then
+            valStr = trig.value and "true" or "false"
+        elseif def.varType == "timestamp" then
+            valStr = trig.setNow and "GetTime()" or tostring(trig.value or 0)
+        else
+            valStr = tostring(trig.value or 0)
+        end
+        local resetStr = trig.resetAfter and (" | reset " .. trig.resetAfter .. "s") or ""
+        local summaryText = trigRow:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        summaryText:SetPoint("LEFT", iconTex, "RIGHT", 4, 0)
+        summaryText:SetPoint("RIGHT", trigRow, "RIGHT", -36, 0)
+        summaryText:SetJustifyH("LEFT")
+        summaryText:SetWordWrap(false)
+        summaryText:SetText(sName .. " -> " .. valStr .. resetStr)
+
+        -- Edit button
+        local editBtn = CreateFrame("Button", nil, trigRow, "UIPanelButtonTemplate")
+        editBtn:SetSize(30, 18)
+        editBtn:SetPoint("RIGHT", trigRow, "RIGHT", -2, 0)
+        editBtn:SetText("Edit")
+        editBtn:SetScript("OnClick", function()
+            RuleBuilder:ShowTriggerEditor(varIndex, origIdx)
+        end)
+
+        lastTrigAnchor = trigRow
+        lastTrigOffset = -4
+    end
+
+    -- + Add Trigger button
+    local addTrigBtn = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
+    TrackFrame(addTrigBtn)
+    addTrigBtn:SetSize(100, 22)
+    addTrigBtn:SetPoint("TOPLEFT", lastTrigAnchor, "BOTTOMLEFT", 0, lastTrigOffset - 2)
+    addTrigBtn:SetText("+ Add Trigger")
+    addTrigBtn:SetScript("OnClick", function()
+        if not _editingData.triggers then _editingData.triggers = {} end
+        local newTrig = {
+            spellID    = nil,
+            varName    = def.name,
+            value      = (def.varType == "boolean") and true or 0,
+            setNow     = (def.varType == "timestamp"),
+            guard      = nil,
+            resetAfter = nil,
+            resetValue = nil,
+        }
+        table.insert(_editingData.triggers, newTrig)
+        RuleBuilder:ShowTriggerEditor(varIndex, #_editingData.triggers)
+    end)
+
+    ----------------------------------------------------------------
+    -- Estimate scroll height
+    ----------------------------------------------------------------
+    local estHeight = 24 + 16 + 26 + 16 + 26 + 50 + 36 + 20 + 30 + (#myTriggers * (TRIG_ROW_H + 4)) + 50
+    scrollChild:SetHeight(math.max(estHeight, 300))
+end
+
+------------------------------------------------------------------------
+-- ShowTriggerEditor - inline right panel for editing one trigger
+------------------------------------------------------------------------
+
+function RuleBuilder:ShowTriggerEditor(varIndex, trigIndex)
+    self:ClearRightPanel()
+    ClearEditorFrames()
+
+    if not _rightPanel or not _editingData or not _isCustomized then return end
+    local def = _editingData.stateVarDefs and _editingData.stateVarDefs[varIndex]
+    local trig = _editingData.triggers and _editingData.triggers[trigIndex]
+    if not def or not trig then return end
+
+    local rightWidth = _rightPanel:GetWidth()
+    local profileId = GetProfileId()
+
+    local scrollFrame = CreateFrame("ScrollFrame", NextDropdownName("TrueShotRBTrigScroll_"), _rightPanel, "UIPanelScrollFrameTemplate")
+    TrackFrame(scrollFrame)
+    scrollFrame:SetPoint("TOPLEFT", _rightPanel, "TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", _rightPanel, "BOTTOMRIGHT", -22, 0)
+
+    local scrollChild = CreateFrame("Frame", nil, scrollFrame)
+    scrollChild:SetWidth(rightWidth - 30)
+    scrollChild:SetHeight(1)
+    scrollFrame:SetScrollChild(scrollChild)
+
+    local function Rerender()
+        RuleBuilder:ShowTriggerEditor(varIndex, trigIndex)
+    end
+
+    ----------------------------------------------------------------
+    -- Header + back link
+    ----------------------------------------------------------------
+    local hdr = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    hdr:SetPoint("TOPLEFT", scrollChild, "TOPLEFT", 4, 0)
+    hdr:SetText("Trigger Editor  |cffaaaaaa(var: " .. (def.label or def.name) .. ")|r")
+
+    local backBtn = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
+    TrackFrame(backBtn)
+    backBtn:SetSize(60, 20)
+    backBtn:SetPoint("TOPLEFT", hdr, "BOTTOMLEFT", 0, -6)
+    backBtn:SetText("< Back")
+    backBtn:SetScript("OnClick", function()
+        RuleBuilder:ShowStateVarEditor(varIndex)
+    end)
+
+    ----------------------------------------------------------------
+    -- Spell selector
+    ----------------------------------------------------------------
+    local spellLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    spellLabel:SetPoint("TOPLEFT", backBtn, "BOTTOMLEFT", 0, -10)
+    spellLabel:SetText("On Spell Cast:")
+
+    local spellList = GetRotationalSpellList()
+    local spellDd = CreateFrame("Frame", NextDropdownName("TrueShotRBTrigSpell_"), scrollChild, "UIDropDownMenuTemplate")
+    TrackFrame(spellDd)
+    spellDd:SetPoint("TOPLEFT", spellLabel, "BOTTOMLEFT", -16, -2)
+    UIDropDownMenu_SetWidth(spellDd, 180)
+
+    UIDropDownMenu_Initialize(spellDd, function()
+        for _, sid in ipairs(spellList) do
+            local sIcon, sName = GetSpellDisplay(sid)
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = sName
+            info.icon = sIcon
+            info.checked = (trig.spellID == sid)
+            info.func = function()
+                trig.spellID = sid
+                UIDropDownMenu_SetText(spellDd, sName)
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+    local _, curSpellName = GetSpellDisplay(trig.spellID)
+    UIDropDownMenu_SetText(spellDd, curSpellName)
+
+    -- Manual spellID
+    local manualRow = CreateFrame("Frame", nil, scrollChild)
+    TrackFrame(manualRow)
+    manualRow:SetSize(280, 22)
+    manualRow:SetPoint("TOPLEFT", spellDd, "BOTTOMLEFT", 16, -4)
+
+    local manualLabel = manualRow:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    manualLabel:SetPoint("LEFT", manualRow, "LEFT", 0, 0)
+    manualLabel:SetText("or SpellID:")
+
+    local manualEdit = CreateFrame("EditBox", nil, manualRow, "InputBoxTemplate")
+    manualEdit:SetSize(80, 20)
+    manualEdit:SetPoint("LEFT", manualLabel, "RIGHT", 6, 0)
+    manualEdit:SetAutoFocus(false)
+    manualEdit:SetText(trig.spellID and tostring(trig.spellID) or "")
+
+    local function ApplyManualTrigSpell()
+        local val = tonumber(manualEdit:GetText())
+        if val and val > 0 then
+            trig.spellID = val
+            local _, nm = GetSpellDisplay(val)
+            UIDropDownMenu_SetText(spellDd, nm)
+        end
+    end
+    manualEdit:SetScript("OnEnterPressed", function(self) ApplyManualTrigSpell(); self:ClearFocus() end)
+    manualEdit:SetScript("OnEditFocusLost", ApplyManualTrigSpell)
+
+    ----------------------------------------------------------------
+    -- Value assignment (depends on varType)
+    ----------------------------------------------------------------
+    local valSectionLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    valSectionLabel:SetPoint("TOPLEFT", manualRow, "BOTTOMLEFT", 0, -10)
+    valSectionLabel:SetText("Set Value To:")
+
+    local lastAnchorAfterValue = valSectionLabel
+
+    if def.varType == "boolean" then
+        local valChk = CreateFrame("CheckButton", nil, scrollChild, "UICheckButtonTemplate")
+        TrackFrame(valChk)
+        valChk:SetSize(22, 22)
+        valChk:SetPoint("TOPLEFT", valSectionLabel, "BOTTOMLEFT", 0, -2)
+        valChk:SetChecked(trig.value == true)
+        valChk:SetScript("OnClick", function(self)
+            trig.value = self:GetChecked()
+        end)
+        local valChkLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        valChkLabel:SetPoint("LEFT", valChk, "RIGHT", 4, 0)
+        valChkLabel:SetText("true")
+        lastAnchorAfterValue = valChk
+
+    elseif def.varType == "timestamp" then
+        local setNowChk = CreateFrame("CheckButton", nil, scrollChild, "UICheckButtonTemplate")
+        TrackFrame(setNowChk)
+        setNowChk:SetSize(22, 22)
+        setNowChk:SetPoint("TOPLEFT", valSectionLabel, "BOTTOMLEFT", 0, -2)
+        setNowChk:SetChecked(trig.setNow == true)
+        setNowChk:SetScript("OnClick", function(self)
+            trig.setNow = self:GetChecked()
+        end)
+        local setNowLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+        setNowLabel:SetPoint("LEFT", setNowChk, "RIGHT", 4, 0)
+        setNowLabel:SetText("Use GetTime() (record cast time)")
+        lastAnchorAfterValue = setNowChk
+
+    else
+        -- number
+        local valEdit = CreateFrame("EditBox", nil, scrollChild, "InputBoxTemplate")
+        TrackFrame(valEdit)
+        valEdit:SetSize(80, 20)
+        valEdit:SetPoint("TOPLEFT", valSectionLabel, "BOTTOMLEFT", 0, -2)
+        valEdit:SetAutoFocus(false)
+        valEdit:SetText(tostring(trig.value or 0))
+        local function ApplyTrigValue()
+            local val = tonumber(valEdit:GetText())
+            if val then trig.value = val end
+        end
+        valEdit:SetScript("OnEnterPressed", function(self) ApplyTrigValue(); self:ClearFocus() end)
+        valEdit:SetScript("OnEditFocusLost", ApplyTrigValue)
+        lastAnchorAfterValue = valEdit
+    end
+
+    ----------------------------------------------------------------
+    -- Reset After (optional)
+    ----------------------------------------------------------------
+    local resetLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    resetLabel:SetPoint("TOPLEFT", lastAnchorAfterValue, "BOTTOMLEFT", 0, -10)
+    resetLabel:SetText("Reset After (seconds, 0 = no reset):")
+
+    local resetEdit = CreateFrame("EditBox", nil, scrollChild, "InputBoxTemplate")
+    TrackFrame(resetEdit)
+    resetEdit:SetSize(60, 20)
+    resetEdit:SetPoint("TOPLEFT", resetLabel, "BOTTOMLEFT", 0, -2)
+    resetEdit:SetAutoFocus(false)
+    resetEdit:SetText(tostring(trig.resetAfter or 0))
+
+    local function ApplyResetAfter()
+        local val = tonumber(resetEdit:GetText())
+        if val and val > 0 then
+            trig.resetAfter = val
+        else
+            trig.resetAfter = nil
+        end
+    end
+    resetEdit:SetScript("OnEnterPressed", function(self) ApplyResetAfter(); self:ClearFocus() end)
+    resetEdit:SetScript("OnEditFocusLost", ApplyResetAfter)
+
+    -- Reset value (only shown if resetAfter is set)
+    local resetValLabel = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    resetValLabel:SetPoint("TOPLEFT", resetEdit, "BOTTOMLEFT", 0, -8)
+    resetValLabel:SetText("Reset To Value (blank = use default):")
+
+    local resetValEdit = CreateFrame("EditBox", nil, scrollChild, "InputBoxTemplate")
+    TrackFrame(resetValEdit)
+    resetValEdit:SetSize(80, 20)
+    resetValEdit:SetPoint("TOPLEFT", resetValLabel, "BOTTOMLEFT", 0, -2)
+    resetValEdit:SetAutoFocus(false)
+    resetValEdit:SetText(trig.resetValue ~= nil and tostring(trig.resetValue) or "")
+
+    local function ApplyResetValue()
+        local text = resetValEdit:GetText()
+        local val = tonumber(text)
+        if text == "" then
+            trig.resetValue = nil
+        elseif def.varType == "boolean" then
+            trig.resetValue = (val ~= nil and val ~= 0) or (text == "true")
+        else
+            trig.resetValue = val
+        end
+    end
+    resetValEdit:SetScript("OnEnterPressed", function(self) ApplyResetValue(); self:ClearFocus() end)
+    resetValEdit:SetScript("OnEditFocusLost", ApplyResetValue)
+
+    ----------------------------------------------------------------
+    -- Guard condition (simplified: condition type only)
+    ----------------------------------------------------------------
+    local guardDivider = scrollChild:CreateTexture(nil, "ARTWORK")
+    guardDivider:SetHeight(1)
+    guardDivider:SetPoint("TOPLEFT", resetValEdit, "BOTTOMLEFT", 0, -10)
+    guardDivider:SetPoint("RIGHT", scrollChild, "RIGHT", -8, 0)
+    guardDivider:SetColorTexture(0.3, 0.3, 0.3, 0.8)
+
+    local guardHeader = scrollChild:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    guardHeader:SetPoint("TOPLEFT", guardDivider, "BOTTOMLEFT", 0, -6)
+    guardHeader:SetText("Guard Condition  |cffaaaaaa(optional, trigger only fires if true)|r")
+
+    local schemas = CustomProfile.GetConditionSchemasForProfile(profileId)
+
+    local clearGuardBtn = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
+    TrackFrame(clearGuardBtn)
+    clearGuardBtn:SetSize(80, 20)
+    clearGuardBtn:SetPoint("TOPLEFT", guardHeader, "BOTTOMLEFT", 0, -6)
+    clearGuardBtn:SetText("Clear Guard")
+    clearGuardBtn:SetScript("OnClick", function()
+        trig.guard = nil
+        Rerender()
+    end)
+
+    local guardDd = CreateFrame("Frame", NextDropdownName("TrueShotRBGuard_"), scrollChild, "UIDropDownMenuTemplate")
+    TrackFrame(guardDd)
+    guardDd:SetPoint("LEFT", clearGuardBtn, "RIGHT", 4, 0)
+    UIDropDownMenu_SetWidth(guardDd, 150)
+
+    local guardCondition = trig.guard or {}
+    UIDropDownMenu_Initialize(guardDd, function()
+        for _, schema in ipairs(schemas) do
+            local info = UIDropDownMenu_CreateInfo()
+            info.text = schema.label
+            info.checked = (guardCondition.type == schema.id)
+            info.func = function()
+                trig.guard = { type = schema.id }
+                UIDropDownMenu_SetText(guardDd, schema.label)
+            end
+            UIDropDownMenu_AddButton(info)
+        end
+    end)
+
+    -- Set initial text
+    local curGuardLabel = "(none)"
+    if trig.guard and trig.guard.type then
+        for _, s in ipairs(schemas) do
+            if s.id == trig.guard.type then curGuardLabel = s.label; break end
+        end
+    end
+    UIDropDownMenu_SetText(guardDd, curGuardLabel)
+
+    ----------------------------------------------------------------
+    -- Save / Delete buttons
+    ----------------------------------------------------------------
+    local btnRow = CreateFrame("Frame", nil, scrollChild)
+    TrackFrame(btnRow)
+    btnRow:SetSize(300, 26)
+    btnRow:SetPoint("TOPLEFT", guardDd, "BOTTOMLEFT", 16, -14)
+
+    local saveBtn = CreateFrame("Button", nil, btnRow, "UIPanelButtonTemplate")
+    saveBtn:SetSize(100, 22)
+    saveBtn:SetPoint("LEFT", btnRow, "LEFT", 0, 0)
+    saveBtn:SetText("Save Trigger")
+    saveBtn:SetScript("OnClick", function()
+        -- Flush focus so OnEditFocusLost fires
+        RuleBuilder:ShowStateVarEditor(varIndex)
+    end)
+
+    local delTrigBtn = CreateFrame("Button", nil, btnRow, "UIPanelButtonTemplate")
+    delTrigBtn:SetSize(100, 22)
+    delTrigBtn:SetPoint("LEFT", saveBtn, "RIGHT", 8, 0)
+    delTrigBtn:SetText("Delete Trigger")
+    delTrigBtn:SetScript("OnClick", function()
+        if _editingData.triggers then
+            table.remove(_editingData.triggers, trigIndex)
+        end
+        RuleBuilder:ShowStateVarEditor(varIndex)
+    end)
+
+    ----------------------------------------------------------------
+    -- Scroll height estimate
+    ----------------------------------------------------------------
+    local estHeight = 24 + 26 + 16 + 50 + 26 + 16 + 30 + 16 + 30 + 16 + 30 + 50 + 30 + 40
+    scrollChild:SetHeight(math.max(estHeight, 300))
 end
