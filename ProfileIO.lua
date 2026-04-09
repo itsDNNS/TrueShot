@@ -520,12 +520,12 @@ local function BuildAllowedConditions(profileId, stateVarDefs)
     for id in pairs(ENGINE_CONDITION_IDS) do
         allowed[id] = true
     end
-    -- Base profile conditions (source == profileId only)
+    -- All registered condition schemas (multiple profiles may share condition
+    -- IDs like bw_on_cd or ba_ready; the registry is keyed by raw ID so only
+    -- the last registrant's source survives -- allow any known condition)
     local allSchemas = CustomProfile.GetAllConditionSchemas()
-    for id, schema in pairs(allSchemas) do
-        if schema.source == profileId then
-            allowed[id] = true
-        end
+    for id in pairs(allSchemas) do
+        allowed[id] = true
     end
     -- Imported state var names
     if stateVarDefs then
