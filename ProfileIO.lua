@@ -629,10 +629,14 @@ function ProfileIO.Validate(data)
             if rule.reason ~= nil and type(rule.reason) ~= "string" then
                 errors[#errors + 1] = "Rule " .. i .. ": reason must be a string"
             end
-            if rule.condition then
-                local ok, err = ValidateConditionTree(rule.condition, 0, allowedConditions)
-                if not ok then
-                    errors[#errors + 1] = "Rule " .. i .. " condition: " .. err
+            if rule.condition ~= nil then
+                if type(rule.condition) ~= "table" then
+                    errors[#errors + 1] = "Rule " .. i .. ": condition must be a table or nil"
+                else
+                    local ok, err = ValidateConditionTree(rule.condition, 0, allowedConditions)
+                    if not ok then
+                        errors[#errors + 1] = "Rule " .. i .. " condition: " .. err
+                    end
                 end
             end
         end
@@ -709,10 +713,14 @@ function ProfileIO.Validate(data)
                         end
                     end
                 end
-                if trig.guard then
-                    local ok, err = ValidateConditionTree(trig.guard, 0, allowedConditions)
-                    if not ok then
-                        errors[#errors + 1] = "Trigger " .. i .. " guard: " .. err
+                if trig.guard ~= nil then
+                    if type(trig.guard) ~= "table" then
+                        errors[#errors + 1] = "Trigger " .. i .. ": guard must be a table or nil"
+                    else
+                        local ok, err = ValidateConditionTree(trig.guard, 0, allowedConditions)
+                        if not ok then
+                            errors[#errors + 1] = "Trigger " .. i .. " guard: " .. err
+                        end
                     end
                 end
             end
