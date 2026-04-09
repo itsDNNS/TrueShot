@@ -71,6 +71,42 @@ local RenderConditionTree  -- forward declaration for recursive rendering
 -- Helpers
 ------------------------------------------------------------------------
 
+-- Recursively check if a condition tree references a given condition type ID
+local function ConditionReferencesType(condition, typeId)
+    if not condition then return false end
+    if condition.type == typeId then return true end
+    if condition.type == "and" or condition.type == "or" then
+        return ConditionReferencesType(condition.left, typeId)
+            or ConditionReferencesType(condition.right, typeId)
+    end
+    if condition.type == "not" then
+        return ConditionReferencesType(condition.inner, typeId)
+    end
+    return false
+end
+
+-- Recursively nullify references to a condition type ID (replace with nil)
+-- Returns the cleaned condition (nil if the node itself was the reference)
+local function RemoveConditionType(condition, typeId)
+    if not condition then return nil end
+    if condition.type == typeId then return nil end
+    if condition.type == "and" or condition.type == "or" then
+        condition.left = RemoveConditionType(condition.left, typeId)
+        condition.right = RemoveConditionType(condition.right, typeId)
+        -- If one side is nil, collapse to the other
+        if not condition.left and not condition.right then return nil end
+        if not condition.left then return condition.right end
+        if not condition.right then return condition.left end
+        return condition
+    end
+    if condition.type == "not" then
+        condition.inner = RemoveConditionType(condition.inner, typeId)
+        if not condition.inner then return nil end
+        return condition
+    end
+    return condition
+end
+
 local function GetSpellDisplay(spellID)
     if not spellID then return nil, "Unknown" end
     local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID) or "Spell " .. spellID
@@ -732,12 +768,22 @@ function RuleBuilder:DeleteStateVar(index)
     -- Capture varName before removing the def
     local varName = (_editingData.stateVarDefs[index] or {}).name
     table.remove(_editingData.stateVarDefs, index)
-    -- Remove all triggers for the deleted var
     if varName then
+        -- Remove all triggers for the deleted var
         local triggers = _editingData.triggers or {}
         for i = #triggers, 1, -1 do
             if triggers[i].varName == varName then
                 table.remove(triggers, i)
+            end
+        end
+        -- Remove all condition references in rules
+        for _, rule in ipairs(_editingData.rules or {}) do
+            rule.condition = RemoveConditionType(rule.condition, varName)
+        end
+        -- Remove guard references in remaining triggers
+        for _, trig in ipairs(_editingData.triggers or {}) do
+            if trig.guard and trig.guard.type == varName then
+                trig.guard = nil
             end
         end
     end
@@ -1563,13 +1609,18 @@ function RuleBuilder:ShowStateVarEditor(varIndex)
     nameEdit:SetAutoFocus(false)
     nameEdit:SetText(def.name or "")
 
-    -- Lock name if any trigger references it (prevents wiring breakage)
+    -- Lock name if any trigger or condition references it (prevents wiring breakage)
     local hasReferences = false
-    if _editingData and _editingData.triggers then
-        for _, trig in ipairs(_editingData.triggers) do
-            if trig.varName == def.name then
-                hasReferences = true
-                break
+    if _editingData then
+        -- Check triggers
+        for _, trig in ipairs(_editingData.triggers or {}) do
+            if trig.varName == def.name then hasReferences = true; break end
+            if trig.guard and ConditionReferencesType(trig.guard, def.name) then hasReferences = true; break end
+        end
+        -- Check rule conditions
+        if not hasReferences then
+            for _, rule in ipairs(_editingData.rules or {}) do
+                if ConditionReferencesType(rule.condition, def.name) then hasReferences = true; break end
             end
         end
     end
