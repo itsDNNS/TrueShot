@@ -508,6 +508,16 @@ local function CreateProfilesPanel()
     local _, subtitle = CreatePanelTitle(scrollChild, "Profiles",
         "All registered rotation profiles. The active profile is highlighted.")
 
+    local ruleBuilderButton = CreateFrame("Button", nil, scrollChild, "UIPanelButtonTemplate")
+    ruleBuilderButton:SetSize(180, 24)
+    ruleBuilderButton:SetPoint("TOPRIGHT", scrollChild, "TOPRIGHT", -8, -16)
+    ruleBuilderButton:SetText("Open Rule Builder")
+    ruleBuilderButton:SetScript("OnClick", function()
+        if TrueShot.RuleBuilder and TrueShot.RuleBuilder.Toggle then
+            TrueShot.RuleBuilder:Toggle()
+        end
+    end)
+
     -- Pre-allocate class header pool (one per class)
     local classHeaders = {}
     for i = 1, #CLASS_ORDER do
@@ -605,7 +615,10 @@ local function CreateProfilesPanel()
                         or GameFontHighlight
                     row.nameText:SetFontObject(fontObj)
 
-                    if isActive then
+                    if isActive and TrueShot.CustomProfile
+                        and TrueShot.CustomProfile.HasCustomData(p.id) then
+                        row.nameText:SetText(name .. "  |cff00ff00(active, customized)|r")
+                    elseif isActive then
                         row.nameText:SetText(name .. "  |cff00ff00(active)|r")
                     else
                         row.nameText:SetText(name)

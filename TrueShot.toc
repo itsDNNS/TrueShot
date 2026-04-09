@@ -37,3 +37,5 @@ SettingsPanel.lua
 SignalProbe.lua
 CombatTrace.lua
 Scorecard.lua
+CustomProfile.lua
+RuleBuilder.lua
