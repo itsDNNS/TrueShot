@@ -849,7 +849,11 @@ function RuleBuilder:OnReset()
     if not profile then return end
 
     local baseProfile = profile._baseProfile or profile
-    CustomProfile.DeleteCustomData(baseProfile.id)
+    -- Delete entire library (not just active entry)
+    if TrueShotDB.customProfiles then
+        TrueShotDB.customProfiles[baseProfile.id] = nil
+    end
+    CustomProfile.ClearCustomConditions(baseProfile.id)
     CustomProfile.InvalidateWrapper(baseProfile.id)
 
     -- Re-activate to revert to built-in

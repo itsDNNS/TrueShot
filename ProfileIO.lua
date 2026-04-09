@@ -763,7 +763,21 @@ function ProfileIO.Validate(data)
         local baseProfile = ResolveBaseProfile(data.profileId)
         if not baseProfile then
             errors[#errors + 1] = "Profile '" .. data.profileId .. "' not available on this character"
-        else
+        elseif baseProfile.specID then
+            -- Verify this character can actually use this spec
+            local canUseSpec = false
+            if GetSpecialization and GetSpecializationInfo then
+                for i = 1, GetNumSpecializations() do
+                    local specID = GetSpecializationInfo(i)
+                    if specID == baseProfile.specID then
+                        canUseSpec = true
+                        break
+                    end
+                end
+            end
+            if not canUseSpec then
+                errors[#errors + 1] = "Profile targets a spec not available to this character class"
+            end
             if data.specID and baseProfile.specID ~= data.specID then
                 errors[#errors + 1] = "specID mismatch: import has " .. data.specID .. ", local profile has " .. baseProfile.specID
             end
