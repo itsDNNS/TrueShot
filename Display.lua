@@ -438,9 +438,45 @@ local function FormatKeybindForDisplay(key)
     if type(key) ~= "string" then
         return ""
     end
+    -- Modifiers
     key = key:gsub("SHIFT%-", "S-")
     key = key:gsub("CTRL%-", "C-")
     key = key:gsub("ALT%-", "A-")
+    -- Numpad
+    key = key:gsub("NUMPAD(%d)", "N%1")
+    key = key:gsub("NUMPADDECIMAL", "N.")
+    key = key:gsub("NUMPADPLUS", "N+")
+    key = key:gsub("NUMPADMINUS", "N-")
+    key = key:gsub("NUMPADMULTIPLY", "N*")
+    key = key:gsub("NUMPADDIVIDE", "N/")
+    -- Mouse
+    key = key:gsub("MOUSEWHEELUP", "MWU")
+    key = key:gsub("MOUSEWHEELDOWN", "MWD")
+    key = key:gsub("MIDDLEBUTTON", "M3")
+    key = key:gsub("BUTTON(%d+)", "M%1")
+    -- Navigation
+    key = key:gsub("PAGEUP", "PgU")
+    key = key:gsub("PAGEDOWN", "PgD")
+    key = key:gsub("INSERT", "Ins")
+    key = key:gsub("DELETE", "Del")
+    key = key:gsub("HOME", "Hm")
+    -- Common keys
+    key = key:gsub("BACKSPACE", "BkSp")
+    key = key:gsub("ESCAPE", "Esc")
+    key = key:gsub("SPACE", "Sp")
+    key = key:gsub("ENTER", "Ent")
+    key = key:gsub("TAB", "Tab")
+    key = key:gsub("CAPSLOCK", "CpLk")
+    key = key:gsub("NUMLOCK", "NmLk")
+    -- Arrows (anchored to avoid mangling gamepad PADD* tokens)
+    key = key:gsub("^UP$", "Up")
+    key = key:gsub("%-UP$", "-Up")
+    key = key:gsub("^DOWN$", "Dn")
+    key = key:gsub("%-DOWN$", "-Dn")
+    key = key:gsub("^LEFT$", "Lt")
+    key = key:gsub("%-LEFT$", "-Lt")
+    key = key:gsub("^RIGHT$", "Rt")
+    key = key:gsub("%-RIGHT$", "-Rt")
     return key
 end
 
