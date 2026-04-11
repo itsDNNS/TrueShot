@@ -4,7 +4,16 @@
 
 local Engine = TrueShot.Engine
 
-local TRUESHOT_DURATION = 19  -- Sentinel gets 19s (not 15s)
+local TRUESHOT_DURATION = 19  -- Sentinel gets 19s (not 15s); timer is fallback only
+
+-- Prefer aura check over timer (handles spell replacement + variable duration)
+local function IsTrueshotBuffActive(state)
+    if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+        local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, 288613)
+        if ok then return aura ~= nil end
+    end
+    return GetTime() < state.trueshotUntil
+end
 
 ------------------------------------------------------------------------
 -- Spell IDs
@@ -86,6 +95,13 @@ local Profile = {
             },
         },
 
+        -- Block Moonlight Chakram outside Trueshot window (AC may still recommend it)
+        {
+            type = "BLACKLIST_CONDITIONAL",
+            spellID = SPELLS.MoonlightChakram,
+            condition = { type = "not", inner = { type = "trueshot_active" } },
+        },
+
         -- Moonlight Chakram: filler late in Trueshot when out of Aimed Shots
         {
             type = "PREFER",
@@ -155,7 +171,7 @@ function Profile:EvalCondition(cond)
         return s.lastTrueshotCast > 0 and (now - s.lastTrueshotCast) <= threshold
 
     elseif cond.type == "trueshot_active" then
-        return now < s.trueshotUntil
+        return IsTrueshotBuffActive(s)
 
     elseif cond.type == "rapid_fire_recent" then
         local threshold = cond.seconds or 3
@@ -195,10 +211,11 @@ end
 function Profile:GetDebugLines()
     local s = self.state
     local now = GetTime()
+    local buffActive = IsTrueshotBuffActive(s)
     local tsRemaining = s.trueshotUntil - now
     return {
-        "  Trueshot: " .. (tsRemaining > 0
-            and string.format("%.1fs remaining", tsRemaining)
+        "  Trueshot: " .. (buffActive
+            and (tsRemaining > 0 and string.format("active (%.1fs timer)", tsRemaining) or "active (buff)")
             or "inactive"),
         "  RF recent: " .. (s.lastRapidFireCast > 0
             and string.format("%.1fs ago", now - s.lastRapidFireCast)
@@ -215,9 +232,7 @@ end
 
 function Profile:GetPhase()
     if not UnitAffectingCombat("player") then return nil end
-    local now = GetTime()
-    local s = self.state
-    if now < s.trueshotUntil then return "Burst" end
+    if IsTrueshotBuffActive(self.state) then return "Burst" end
     return nil
 end
 
