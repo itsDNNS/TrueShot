@@ -16,6 +16,25 @@ local function OpenRegisteredCategory()
 end
 
 ------------------------------------------------------------------------
+-- Helpers
+------------------------------------------------------------------------
+
+-- Run callback after WoW's Settings canvas finishes its own initialization.
+-- OnShow fires before the Settings system has fully laid out the subcategory
+-- panel, and GetTop() returns values immediately from anchors. We skip a
+-- fixed number of frames to let the canvas settle, then run the sync.
+local function RunAfterLayout(panel, _, callback)
+    local frames = 0
+    panel:SetScript("OnUpdate", function(self)
+        frames = frames + 1
+        if frames >= 3 then
+            self:SetScript("OnUpdate", nil)
+            callback()
+        end
+    end)
+end
+
+------------------------------------------------------------------------
 -- Widget factories (shared across all panels)
 ------------------------------------------------------------------------
 
@@ -27,9 +46,17 @@ local function CreateSectionHeader(parent, text, relativeTo, yOffset)
 end
 
 local function CreateCheckbox(parent, label, description, relativeTo, key)
-    local check = CreateFrame("CheckButton", nil, parent, "InterfaceOptionsCheckButtonTemplate")
+    local check = CreateFrame("CheckButton", nil, parent, "UICheckButtonTemplate")
+    check:SetSize(26, 26)
     check:SetPoint("TOPLEFT", relativeTo, "BOTTOMLEFT", 0, -14)
-    check.Text:SetText(label)
+    check:SetChecked(TrueShot.GetOpt(key))
+
+    local text = check:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    text:SetPoint("LEFT", check, "RIGHT", 4, 0)
+    text:SetText(label)
+    check.Text = text
+    -- Extend clickable area to cover the label text
+    check:SetHitRectInsets(0, -text:GetStringWidth() - 8, 0, 0)
 
     local desc = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     desc:SetPoint("TOPLEFT", check, "BOTTOMLEFT", 0, -2)
@@ -105,6 +132,7 @@ end
 local function CreatePanelFrame()
     local panel = CreateFrame("Frame")
     panel:SetSize(640, 800)
+    panel:Hide()  -- prevent premature OnShow during RegisterCanvasLayoutSubcategory
     return panel
 end
 
@@ -178,10 +206,12 @@ local function CreateGeneralPanel()
     hint:SetText("For diagnostics and debugging, use /ts debug and /ts probe commands.")
 
     panel:SetScript("OnShow", function()
-        lockCheck.sync()
-        enemyCheck.sync()
-        combatCheck.sync()
-        loginCheck.sync()
+        RunAfterLayout(panel, nil, function()
+            lockCheck.sync()
+            enemyCheck.sync()
+            combatCheck.sync()
+            loginCheck.sync()
+        end)
     end)
 
     return panel
@@ -322,19 +352,21 @@ local function CreateAppearancePanel()
     end)
 
     panel:SetScript("OnShow", function()
-        scaleSlider.sync()
-        opacitySlider.sync()
-        backdropCheck.sync()
-        UIDropDownMenu_SetText(orientDropdown, TrueShot.GetOpt("orientation"))
-        local fis = TrueShot.GetOpt("firstIconScale") or 1.3
-        fisSlider:SetValue(fis)
-        fisSlider.Text:SetText(string.format("%.1f", fis))
-        countSlider:SetValue(TrueShot.GetOpt("iconCount"))
-        countSlider.Text:SetText(tostring(TrueShot.GetOpt("iconCount")))
-        sizeSlider:SetValue(TrueShot.GetOpt("iconSize"))
-        sizeSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSize")))
-        spacingSlider:SetValue(TrueShot.GetOpt("iconSpacing"))
-        spacingSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSpacing")))
+        RunAfterLayout(panel, scaleSlider, function()
+            scaleSlider.sync()
+            opacitySlider.sync()
+            backdropCheck.sync()
+            UIDropDownMenu_SetText(orientDropdown, TrueShot.GetOpt("orientation"))
+            local fis = TrueShot.GetOpt("firstIconScale") or 1.3
+            fisSlider:SetValue(fis)
+            fisSlider.Text:SetText(string.format("%.1f", fis))
+            countSlider:SetValue(TrueShot.GetOpt("iconCount"))
+            countSlider.Text:SetText(tostring(TrueShot.GetOpt("iconCount")))
+            sizeSlider:SetValue(TrueShot.GetOpt("iconSize"))
+            sizeSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSize")))
+            spacingSlider:SetValue(TrueShot.GetOpt("iconSpacing"))
+            spacingSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSpacing")))
+        end)
     end)
 
     return panel
@@ -346,82 +378,96 @@ end
 
 local function CreateFeaturesPanel()
     local panel = CreatePanelFrame()
-    local _, subtitle = CreatePanelTitle(panel, "Features",
+
+    -- ScrollFrame wrapping all content
+    local scrollFrame = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, 0)
+    scrollFrame:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -26, 0)
+
+    local sc = CreateFrame("Frame", nil, scrollFrame)
+    sc:SetSize(600, 1)
+    scrollFrame:SetScrollChild(sc)
+
+    scrollFrame:SetScript("OnSizeChanged", function(self, w)
+        sc:SetWidth(w)
+    end)
+
+    local _, subtitle = CreatePanelTitle(sc, "Features",
         "Toggle overlay features and visual feedback.")
 
     local castCheck, castDesc = CreateCheckbox(
-        panel, "Show cast success feedback",
+        sc, "Show cast success feedback",
         "Flash the icon briefly when your cast matches the recommendation.",
         subtitle, "showCastFeedback"
     )
 
     local cooldownCheck, cooldownDesc = CreateCheckbox(
-        panel, "Show cooldown swipes (best-effort)",
+        sc, "Show cooldown swipes (best-effort)",
         "Display cooldown sweep when readable. Not a promise of exact Midnight cooldown truth.",
         castDesc, "showCooldownSwipe"
     )
 
     local keybindCheck, keybindDesc = CreateCheckbox(
-        panel, "Show keybindings",
+        sc, "Show keybindings",
         "Display the keybinding text on each icon.",
         cooldownDesc, "showKeybinds"
     )
 
     local rangeCheck, rangeDesc = CreateCheckbox(
-        panel, "Show range indicator",
+        sc, "Show range indicator",
         "Tint the primary icon red when your target is out of range.",
         keybindDesc, "showRangeIndicator"
     )
 
     local whyCheck, whyDesc = CreateCheckbox(
-        panel, "Show recommendation reason",
+        sc, "Show recommendation reason",
         "Display a label below the primary icon explaining why it was recommended (e.g. Withering Fire, Charge Dump).",
         rangeDesc, "showWhyOverlay"
     )
 
     local aoeHintCheck, aoeHintDesc = CreateCheckbox(
-        panel, "Show AoE hint icon",
+        sc, "Show AoE hint icon",
         "Display a secondary icon below the primary icon when an AoE ability is recommended (e.g. Wild Thrash at 2+ targets).",
         whyDesc, "showAoeHint"
     )
 
     local glowCheck, glowDesc = CreateCheckbox(
-        panel, "Show override glow",
+        sc, "Show override glow",
         "Pulsing glow on the first icon when TrueShot overrides Assisted Combat (cyan for PIN, blue for PREFER).",
         aoeHintDesc, "showOverrideIndicator"
     )
 
     local phaseCheck, phaseDesc = CreateCheckbox(
-        panel, "Show phase indicator",
+        sc, "Show phase indicator",
         "Display the current rotation phase label above the overlay (e.g. Opener, Cooldowns, Execute).",
         glowDesc, "showPhaseIndicator"
     )
 
     -- Performance section
-    local perfHeader = CreateSectionHeader(panel, "Performance Tracking", phaseDesc, -20)
+    local perfHeader = CreateSectionHeader(sc, "Performance Tracking", phaseDesc, -20)
 
     local scorecardCheck, scorecardDesc = CreateCheckbox(
-        panel,
+        sc,
         "Show alignment scorecard",
         "Display a rotation alignment report in chat after each combat (min 8s fight, 5+ casts).",
         perfHeader, "showScorecard"
     )
 
     local heartbeatCheck, heartbeatDesc = CreateCheckbox(
-        panel,
+        sc,
         "Show GCD heartbeat",
         "Display a scrolling rhythm strip below the overlay showing cast alignment in real-time.",
         scorecardDesc, "showHeartbeat"
     )
 
     -- Positioning section
-    local posHeader = CreateSectionHeader(panel, "Element Positioning", heartbeatDesc, -20)
+    local posHeader = CreateSectionHeader(sc, "Element Positioning", heartbeatDesc, -20)
 
-    local reasonPosLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local reasonPosLabel = sc:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     reasonPosLabel:SetPoint("TOPLEFT", posHeader, "BOTTOMLEFT", 0, -10)
     reasonPosLabel:SetText("Reason text position")
 
-    local reasonPosDropdown = CreateFrame("Frame", "TrueShotReasonPosDD", panel, "UIDropDownMenuTemplate")
+    local reasonPosDropdown = CreateFrame("Frame", "TrueShotReasonPosDD", sc, "UIDropDownMenuTemplate")
     reasonPosDropdown:SetPoint("TOPLEFT", reasonPosLabel, "BOTTOMLEFT", -16, -2)
     UIDropDownMenu_SetWidth(reasonPosDropdown, 100)
 
@@ -439,15 +485,15 @@ local function CreateFeaturesPanel()
         end
     end)
 
-    local reasonPosDesc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local reasonPosDesc = sc:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     reasonPosDesc:SetPoint("TOPLEFT", reasonPosDropdown, "BOTTOMLEFT", 16, -2)
     reasonPosDesc:SetText("   Show the recommendation reason (e.g. Withering Fire) above or below the icon.")
 
-    local aoeHintPosLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local aoeHintPosLabel = sc:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     aoeHintPosLabel:SetPoint("TOPLEFT", reasonPosDesc, "BOTTOMLEFT", 0, -10)
     aoeHintPosLabel:SetText("AoE hint position")
 
-    local aoeHintPosDropdown = CreateFrame("Frame", "TrueShotAoeHintPosDD", panel, "UIDropDownMenuTemplate")
+    local aoeHintPosDropdown = CreateFrame("Frame", "TrueShotAoeHintPosDD", sc, "UIDropDownMenuTemplate")
     aoeHintPosDropdown:SetPoint("TOPLEFT", aoeHintPosLabel, "BOTTOMLEFT", -16, -2)
     UIDropDownMenu_SetWidth(aoeHintPosDropdown, 100)
 
@@ -465,23 +511,32 @@ local function CreateFeaturesPanel()
         end
     end)
 
-    local aoeHintPosDesc = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    local aoeHintPosDesc = sc:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     aoeHintPosDesc:SetPoint("TOPLEFT", aoeHintPosDropdown, "BOTTOMLEFT", 16, -2)
     aoeHintPosDesc:SetText("   Show the AoE hint icon (e.g. Wild Thrash) below the main icon or to its left.")
 
+    -- Update scroll child height on show
     panel:SetScript("OnShow", function()
-        castCheck.sync()
-        cooldownCheck.sync()
-        keybindCheck.sync()
-        rangeCheck.sync()
-        whyCheck.sync()
-        aoeHintCheck.sync()
-        glowCheck.sync()
-        phaseCheck.sync()
-        scorecardCheck.sync()
-        heartbeatCheck.sync()
-        UIDropDownMenu_SetText(reasonPosDropdown, TrueShot.GetOpt("reasonPosition") or "BELOW")
-        UIDropDownMenu_SetText(aoeHintPosDropdown, TrueShot.GetOpt("aoeHintPosition") or "BELOW")
+        RunAfterLayout(panel, sc, function()
+            castCheck.sync()
+            cooldownCheck.sync()
+            keybindCheck.sync()
+            rangeCheck.sync()
+            whyCheck.sync()
+            aoeHintCheck.sync()
+            glowCheck.sync()
+            phaseCheck.sync()
+            scorecardCheck.sync()
+            heartbeatCheck.sync()
+            UIDropDownMenu_SetText(reasonPosDropdown, TrueShot.GetOpt("reasonPosition") or "BELOW")
+            UIDropDownMenu_SetText(aoeHintPosDropdown, TrueShot.GetOpt("aoeHintPosition") or "BELOW")
+
+            local top = sc:GetTop()
+            local bottom = aoeHintPosDesc:GetBottom()
+            if top and bottom then
+                sc:SetHeight(top - bottom + 30)
+            end
+        end)
     end)
 
     return panel
@@ -579,11 +634,18 @@ local function CreatePositionPanel()
     applyCoordsButton:SetScript("OnClick", ApplyPositionFromInputs)
 
     panel:SetScript("OnShow", function()
-        SyncPositionEditBoxes()
+        panel._coordsNeedSync = true
     end)
 
     panel:SetScript("OnUpdate", function(_, elapsed)
         if not panel:IsShown() then return end
+        -- Sync immediately on first frame after show, then every 0.2s
+        if panel._coordsNeedSync then
+            panel._coordsNeedSync = false
+            panel._coordsElapsed = 0
+            SyncPositionEditBoxes()
+            return
+        end
         panel._coordsElapsed = (panel._coordsElapsed or 0) + elapsed
         if panel._coordsElapsed < 0.2 then return end
         panel._coordsElapsed = 0
@@ -772,7 +834,7 @@ local function CreateProfilesPanel()
             lastElement = emptyText
         end
 
-        -- Update scroll child height
+        -- Update scroll child height (layout already settled from outer RunAfterLayout)
         C_Timer.After(0, function()
             local top = scrollChild:GetTop()
             local bottom = lastElement and lastElement:GetBottom()
@@ -782,7 +844,11 @@ local function CreateProfilesPanel()
         end)
     end
 
-    panel:SetScript("OnShow", SyncProfileList)
+    panel:SetScript("OnShow", function()
+        RunAfterLayout(panel, scrollChild, function()
+            SyncProfileList()
+        end)
+    end)
 
     return panel
 end
