@@ -139,7 +139,7 @@ local function CreateGeneralPanel()
 
     local enemyCheck, enemyDesc = CreateCheckbox(
         panel, "Show only on enemy target",
-        "Show the overlay only when you have a hostile target selected. Implies combat-only behavior.",
+        "Show the overlay when you have a hostile target or are in combat. Hides outside combat without an enemy target.",
         lockDesc, "enemyTargetOnly"
     )
 
@@ -255,6 +255,72 @@ local function CreateAppearancePanel()
         self.Text:SetText(string.format("%.1f", value))
     end)
 
+    -- Queue layout section
+    local queueHeader = CreateSectionHeader(panel, "Queue Layout", fisSlider, -18)
+
+    local countLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    countLabel:SetPoint("TOPLEFT", queueHeader, "BOTTOMLEFT", 0, -10)
+    countLabel:SetText("Icon count")
+
+    local countSlider = CreateFrame("Slider", "TrueShotIconCount", panel,
+        "OptionsSliderTemplate")
+    countSlider:SetPoint("TOPLEFT", countLabel, "BOTTOMLEFT", 0, -6)
+    countSlider:SetSize(180, 16)
+    countSlider:SetMinMaxValues(1, 4)
+    countSlider:SetValueStep(1)
+    countSlider:SetObeyStepOnDrag(true)
+    countSlider:SetValue(TrueShot.GetOpt("iconCount"))
+    countSlider.Low:SetText("1")
+    countSlider.High:SetText("4")
+    countSlider.Text:SetText(tostring(TrueShot.GetOpt("iconCount")))
+    countSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value + 0.5)
+        TrueShot.SetOpt("iconCount", value)
+        self.Text:SetText(tostring(value))
+    end)
+
+    local sizeLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    sizeLabel:SetPoint("TOPLEFT", countSlider, "BOTTOMLEFT", 0, -14)
+    sizeLabel:SetText("Icon size")
+
+    local sizeSlider = CreateFrame("Slider", "TrueShotIconSize", panel,
+        "OptionsSliderTemplate")
+    sizeSlider:SetPoint("TOPLEFT", sizeLabel, "BOTTOMLEFT", 0, -6)
+    sizeSlider:SetSize(180, 16)
+    sizeSlider:SetMinMaxValues(24, 64)
+    sizeSlider:SetValueStep(4)
+    sizeSlider:SetObeyStepOnDrag(true)
+    sizeSlider:SetValue(TrueShot.GetOpt("iconSize"))
+    sizeSlider.Low:SetText("24")
+    sizeSlider.High:SetText("64")
+    sizeSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSize")))
+    sizeSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value / 4 + 0.5) * 4
+        TrueShot.SetOpt("iconSize", value)
+        self.Text:SetText(tostring(value))
+    end)
+
+    local spacingLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    spacingLabel:SetPoint("TOPLEFT", sizeSlider, "BOTTOMLEFT", 0, -14)
+    spacingLabel:SetText("Icon spacing")
+
+    local spacingSlider = CreateFrame("Slider", "TrueShotIconSpacing", panel,
+        "OptionsSliderTemplate")
+    spacingSlider:SetPoint("TOPLEFT", spacingLabel, "BOTTOMLEFT", 0, -6)
+    spacingSlider:SetSize(180, 16)
+    spacingSlider:SetMinMaxValues(0, 12)
+    spacingSlider:SetValueStep(1)
+    spacingSlider:SetObeyStepOnDrag(true)
+    spacingSlider:SetValue(TrueShot.GetOpt("iconSpacing"))
+    spacingSlider.Low:SetText("0")
+    spacingSlider.High:SetText("12")
+    spacingSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSpacing")))
+    spacingSlider:SetScript("OnValueChanged", function(self, value)
+        value = math.floor(value + 0.5)
+        TrueShot.SetOpt("iconSpacing", value)
+        self.Text:SetText(tostring(value))
+    end)
+
     panel:SetScript("OnShow", function()
         scaleSlider.sync()
         opacitySlider.sync()
@@ -263,6 +329,12 @@ local function CreateAppearancePanel()
         local fis = TrueShot.GetOpt("firstIconScale") or 1.3
         fisSlider:SetValue(fis)
         fisSlider.Text:SetText(string.format("%.1f", fis))
+        countSlider:SetValue(TrueShot.GetOpt("iconCount"))
+        countSlider.Text:SetText(tostring(TrueShot.GetOpt("iconCount")))
+        sizeSlider:SetValue(TrueShot.GetOpt("iconSize"))
+        sizeSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSize")))
+        spacingSlider:SetValue(TrueShot.GetOpt("iconSpacing"))
+        spacingSlider.Text:SetText(tostring(TrueShot.GetOpt("iconSpacing")))
     end)
 
     return panel
@@ -319,8 +391,14 @@ local function CreateFeaturesPanel()
         aoeHintDesc, "showOverrideIndicator"
     )
 
+    local phaseCheck, phaseDesc = CreateCheckbox(
+        panel, "Show phase indicator",
+        "Display the current rotation phase label above the overlay (e.g. Opener, Cooldowns, Execute).",
+        glowDesc, "showPhaseIndicator"
+    )
+
     -- Performance section
-    local perfHeader = CreateSectionHeader(panel, "Performance Tracking", glowDesc, -20)
+    local perfHeader = CreateSectionHeader(panel, "Performance Tracking", phaseDesc, -20)
 
     local scorecardCheck, scorecardDesc = CreateCheckbox(
         panel,
@@ -399,6 +477,7 @@ local function CreateFeaturesPanel()
         whyCheck.sync()
         aoeHintCheck.sync()
         glowCheck.sync()
+        phaseCheck.sync()
         scorecardCheck.sync()
         heartbeatCheck.sync()
         UIDropDownMenu_SetText(reasonPosDropdown, TrueShot.GetOpt("reasonPosition") or "BELOW")
