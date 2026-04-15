@@ -10,8 +10,9 @@ ignore:
   - CLAUDE.md
   - tests
   - tasks
-  - docs/specs
+  - docs
   - graphify-out
+  - icon.svg
   - "*.zip"
   - "*.bak"
   - pkgmeta.yaml
