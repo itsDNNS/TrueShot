@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.23.7 - 2026-04-15
+
+### Changed
+- **Hunter release-readiness docs**: Added a Hunter validation matrix plus explicit MM/SV reference docs so the shipped Hunter support baseline is documented more evenly.
+- **Workflow maintenance**: GitHub Actions checkout steps now use the current `actions/checkout` line.
+
+### Fixed
+- **Release packaging**: Addon packages now exclude repo-only documentation and local metadata instead of shipping them in the release zip.
+
 ## v0.23.6 - 2026-04-15
 
 ### Changed
