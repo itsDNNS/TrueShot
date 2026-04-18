@@ -115,6 +115,7 @@ These are acceptable:
 - "Assisted Combat currently surfaces Spell X in its primary or rotation suggestions, so use that as a legal readiness gate for an override."
 - "The target is casting, so interrupt can be surfaced."
 - "Nameplate count is at least N, so prefer an AoE branch."
+- "Spell X was cast, `GetSpellBaseCooldown` returns 30000ms (non-secret), and we observed cast success, so Spell X is on cooldown until `GetTime() + 30`." This is the `State/CDLedger` pattern. Live `GetSpellBaseCooldown` values are preferred (they reflect talent CDR), with hardcoded `spec.base_ms` as a fallback when the API returns 0, nil, or secret. Haste scaling is applied through `UnitSpellHaste("player")` only for spells explicitly flagged `haste_scaled`, and degrades cleanly to "no scaling" when the read is secret.
 
 ## Rejected Patterns
 

@@ -499,6 +499,74 @@ function Probe:SpellOverlay()
 end
 
 ------------------------------------------------------------------------
+-- Probe: CDLedger dependencies
+--
+-- Reports the secrecy and value of GetSpellBaseCooldown, UnitSpellHaste, and
+-- C_Spell.GetSpellCooldown for every spell currently in State/CDLedger.spec.
+-- Results feed into docs/SIGNAL_VALIDATION.md classifications for the three
+-- APIs the ledger relies on.
+------------------------------------------------------------------------
+
+function Probe:CooldownLedger()
+    PrintHeader("CDLedger signals (GetSpellBaseCooldown, UnitSpellHaste, C_Spell.GetSpellCooldown)")
+
+    if not TrueShot.CDLedger or not TrueShot.CDLedger.spec then
+        PrintResult("status", "CDLedger not loaded")
+        return
+    end
+
+    -- UnitSpellHaste first (global, not per-spell)
+    if UnitSpellHaste then
+        local ok, haste = pcall(UnitSpellHaste, "player")
+        PrintResult("UnitSpellHaste pcall", ok and "ok" or "ERROR: " .. tostring(haste))
+        if ok then
+            PrintResult("  value",  tostring(haste))
+            PrintResult("  secret", SecretLabel(haste))
+        end
+    else
+        PrintResult("UnitSpellHaste", "API not available")
+    end
+
+    print(" ")
+
+    for spellID, entry in pairs(TrueShot.CDLedger.spec) do
+        local name = (C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)) or tostring(spellID)
+        print("|cffffff00" .. name .. " (" .. spellID .. ")|r")
+
+        -- GetSpellBaseCooldown
+        if GetSpellBaseCooldown then
+            local ok, cdMs, gcdMs = pcall(GetSpellBaseCooldown, spellID)
+            if ok then
+                PrintResult("  GetSpellBaseCooldown", "cd=" .. tostring(cdMs) .. "ms gcd=" .. tostring(gcdMs) .. "ms")
+                PrintResult("  cd secret", SecretLabel(cdMs))
+                PrintResult("  spec fallback base_ms", tostring(entry.base_ms))
+                PrintResult("  haste_scaled", tostring(entry.haste_scaled))
+            else
+                PrintResult("  GetSpellBaseCooldown", "ERROR: " .. tostring(cdMs))
+            end
+        end
+
+        -- C_Spell.GetSpellCooldown (deliberately NOT the primary source for CDLedger)
+        if C_Spell and C_Spell.GetSpellCooldown then
+            local ok, cd = pcall(C_Spell.GetSpellCooldown, spellID)
+            if ok and cd then
+                PrintResult("  C_Spell.GetSpellCooldown.duration", tostring(cd.duration or 0))
+                PrintResult("  .duration secret", SecretLabel(cd.duration or 0))
+                PrintResult("  .startTime secret", SecretLabel(cd.startTime or 0))
+            end
+        end
+
+        print(" ")
+    end
+
+    PrintClassification("If GetSpellBaseCooldown is non-secret and returns positive values " ..
+        "for your Hunter talents, the ledger can trust the live value. " ..
+        "If UnitSpellHaste('player') is secret in combat, the ledger degrades " ..
+        "haste-scaled spells to unscaled CDs (no shipped Hunter spell is currently " ..
+        "haste-scaled, so this is architecture-forward).")
+end
+
+------------------------------------------------------------------------
 -- Probe: run all
 ------------------------------------------------------------------------
 
@@ -508,6 +576,8 @@ function Probe:RunAll(chargeSpellID)
     self:NameplateCount()
     print(" ")
     self:SpellCharges(chargeSpellID)
+    print(" ")
+    self:CooldownLedger()
 end
 
 ------------------------------------------------------------------------
@@ -531,6 +601,8 @@ function Probe:HandleCommand(args)
         self:AuraRead()
     elseif sub == "overlay" then
         self:SpellOverlay()
+    elseif sub == "cd" then
+        self:CooldownLedger()
     elseif sub == "all" then
         local spellID = tonumber(args:match("%S+%s+(%d+)"))
         self:RunAll(spellID)
@@ -542,6 +614,7 @@ function Probe:HandleCommand(args)
         print("  /ts probe secrecy  - Audit per-spell aura/cooldown secrecy levels")
         print("  /ts probe aura     - Read actual aura + cooldown data (cast Barbed Shot first)")
         print("  /ts probe overlay  - Test proc glow detection (cast in combat to trigger procs)")
+        print("  /ts probe cd       - Test CDLedger dependencies (GetSpellBaseCooldown, UnitSpellHaste, C_Spell.GetSpellCooldown)")
         print("  /ts probe all [spellID]      - Run all probes")
     else
         print("|cff00ff00[[TS Probe]|r Unknown probe: " .. sub .. ". Use /ts probe help")

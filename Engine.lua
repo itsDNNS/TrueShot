@@ -225,6 +225,22 @@ function Engine:EvalCondition(cond)
         end
         return false
 
+    elseif cond.type == "cd_ready" then
+        if TrueShot.CDLedger then
+            return TrueShot.CDLedger:IsOnCooldown(cond.spellID) == false
+        end
+        return false
+
+    elseif cond.type == "cd_remaining" then
+        if not TrueShot.CDLedger then return false end
+        local remaining = TrueShot.CDLedger:SecondsUntilReady(cond.spellID)
+        if cond.op == ">=" then return remaining >= cond.value end
+        if cond.op == ">"  then return remaining >  cond.value end
+        if cond.op == "==" then return remaining == cond.value end
+        if cond.op == "<"  then return remaining <  cond.value end
+        if cond.op == "<=" then return remaining <= cond.value end
+        return false
+
     elseif cond.type == "burst_mode" then
         return self.burstModeActive
 

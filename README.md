@@ -106,6 +106,10 @@ The addon is:
 - **Transparent**: shows why it overrode AC (reason labels, phase indicators)
 - **Fail-safe**: degrades gracefully to pure AC passthrough if signals are unavailable
 
+## State Layer
+
+Starting in v0.25.0, TrueShot has a `State/` layer that owns class-agnostic shared state multiple profiles can query through engine conditions. The first module is `State/CDLedger.lua`, a central cooldown tracker fed by `UNIT_SPELLCAST_SUCCEEDED` with `GetSpellBaseCooldown` as the base-CD source and haste-aware scaling for spells flagged `haste_scaled`. Profiles use the engine conditions `cd_ready(spellID)` and `cd_remaining(spellID, op, value)` instead of duplicated local timers. `Hunter.BM.PackLeader` is the first migrated profile; the remaining Hunter profiles migrate incrementally.
+
 ## Framework Docs
 
 - [Project Goals](docs/PROJECT_GOALS.md)

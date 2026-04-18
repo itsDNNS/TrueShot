@@ -100,6 +100,14 @@ CustomProfile.RegisterConditionSchema("_engine", {
           { field = "op",        fieldType = "operator", choices = {">=", ">", "==", "<", "<="}, default = ">=" },
           { field = "value",     fieldType = "number", default = 50, label = "Amount" },
       }},
+    { id = "cd_ready",        label = "Cooldown Ready",
+      params = { { field = "spellID", fieldType = "spell", label = "Spell" } } },
+    { id = "cd_remaining",    label = "Cooldown Remaining",
+      params = {
+          { field = "spellID", fieldType = "spell", label = "Spell" },
+          { field = "op",      fieldType = "operator", choices = {">=", ">", "==", "<", "<="}, default = ">" },
+          { field = "value",   fieldType = "number", default = 0, label = "Seconds" },
+      }},
 })
 
 ------------------------------------------------------------------------

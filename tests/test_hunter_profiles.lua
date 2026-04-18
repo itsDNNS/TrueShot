@@ -30,6 +30,13 @@ _G.UnitAffectingCombat = function(_) return true end
 _G.issecretvalue = function(_) return false end
 _G.pcall = pcall
 
+-- CDLedger probes GetSpellBaseCooldown (non-secret on Midnight 12.0.4) and
+-- UnitSpellHaste (SecretArguments flag, ledger degrades to zero haste when
+-- secret). Tests default to "base from spec table, zero haste" unless a
+-- specific test overrides these.
+_G.GetSpellBaseCooldown = function(_) return 0, 0 end
+_G.UnitSpellHaste = function(_) return 0 end
+
 -- Minimal C_Spell stub: treat charges as a plain table keyed by spellID so tests
 -- can drive `spell_charges` conditions deterministically.
 local _charges = {}
@@ -51,6 +58,32 @@ _G.C_UnitAuras.GetPlayerAuraBySpellID = function(spellID)
     return _auras_by_spell[spellID]
 end
 
+-- Engine.lua expects CreateFrame at load time for an internal glow-tracker.
+-- Return a minimal no-op frame that accepts RegisterEvent / SetScript calls.
+_G.CreateFrame = function(_frameType, _name)
+    return {
+        RegisterEvent = function() end,
+        SetScript = function() end,
+    }
+end
+_G.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
+_G.IsPlayerSpell = function(_) return true end
+_G.UnitPower = function(_unit, _powerType) return 100 end
+_G.UnitExists = function(_) return false end
+_G.UnitCanAttack = function(_, _) return false end
+_G.C_NamePlate = _G.C_NamePlate or { GetNamePlates = function() return {} end }
+_G.C_AssistedCombat = _G.C_AssistedCombat or {
+    IsAvailable = function() return false end,
+    GetNextCastSpell = function() return nil end,
+    GetRotationSpells = function() return {} end,
+}
+_G.C_SpellActivationOverlay = _G.C_SpellActivationOverlay or {
+    IsSpellOverlayed = function() return false end,
+}
+_G.UnitCastingInfo = function(_) return nil end
+_G.UnitChannelInfo = function(_) return nil end
+_G.C_Spell.IsSpellUsable = _G.C_Spell.IsSpellUsable or function(_) return true end
+
 ------------------------------------------------------------------------
 -- Minimal Engine + CustomProfile stubs that capture registered profiles
 ------------------------------------------------------------------------
@@ -58,19 +91,29 @@ end
 TrueShot = {}
 local registered = {}
 
-TrueShot.Engine = {
-    RegisterProfile = function(_, profile)
-        registered[profile.id] = profile
-    end,
-}
+-- Placeholder captured before Engine.lua loads. The real Engine overwrites the
+-- namespace when its file is dofile'd below; we preserve the RegisterProfile
+-- capture by wrapping it after load.
 
 TrueShot.CustomProfile = {
     RegisterConditionSchema = function(_, _) end,
 }
 
 ------------------------------------------------------------------------
--- Load all Hunter profiles into the capture table
+-- Load Engine + CDLedger + all Hunter profiles into the capture table
 ------------------------------------------------------------------------
+
+dofile("Engine.lua")
+
+-- Override RegisterProfile so each profile file's load-time registration
+-- lands in the test capture table. The real Engine:RegisterProfile also
+-- keeps its internal TrueShot.Profiles keying; we do not depend on that
+-- here, so a plain capture is sufficient.
+TrueShot.Engine.RegisterProfile = function(_, profile)
+    registered[profile.id] = profile
+end
+
+dofile("State/CDLedger.lua")
 
 dofile("Profiles/BM_DarkRanger.lua")
 dofile("Profiles/BM_PackLeader.lua")
@@ -78,6 +121,20 @@ dofile("Profiles/MM_DarkRanger.lua")
 dofile("Profiles/MM_Sentinel.lua")
 dofile("Profiles/SV_PackLeader.lua")
 dofile("Profiles/SV_Sentinel.lua")
+
+-- Mirror Core.lua: every OnSpellCast on a profile also dispatches to the ledger
+-- so migrated profiles (BM Pack Leader today, more later) see consistent state.
+for _, p in pairs(registered) do
+    local original = p.OnSpellCast
+    if original then
+        p.OnSpellCast = function(profile, spellID)
+            if TrueShot.CDLedger and TrueShot.CDLedger.OnSpellCastSucceeded then
+                TrueShot.CDLedger:OnSpellCastSucceeded(spellID)
+            end
+            return original(profile, spellID)
+        end
+    end
+end
 
 local function P(id)
     local p = registered[id]
@@ -95,6 +152,9 @@ local function test(name, fn)
     -- Reset each profile's state between tests so they do not leak.
     for _, p in pairs(registered) do
         if p.ResetState then p:ResetState() end
+    end
+    if TrueShot.CDLedger and TrueShot.CDLedger.Reset then
+        TrueShot.CDLedger:Reset()
     end
     set_time(1000.0)
     _charges = {}
@@ -249,13 +309,60 @@ test("BM PL: Stampede PIN is ordered before the KC Proc PIN (first-match-wins)",
         "reason='Stampede', the Stampede rule must be declared before the KC Proc rule.")
 end)
 
-test("BM PL: bw_on_cd blocks re-cast inside the 30s window", function()
+test("BM PL: bw_on_cd shim still routes through the CDLedger", function()
     local p = P("Hunter.BM.PackLeader")
     p:OnSpellCast(19574)
     advance_time(10)
-    assert_true(p:EvalCondition({ type = "bw_on_cd" }), "BW should be on CD at +10s")
-    advance_time(25) -- total 35s, past the 30s CD
-    assert_false(p:EvalCondition({ type = "bw_on_cd" }), "BW should be off CD at +35s")
+    assert_true(p:EvalCondition({ type = "bw_on_cd" }),
+        "Legacy shim must mirror CDLedger:IsOnCooldown for backward-compat")
+    advance_time(25)
+    assert_false(p:EvalCondition({ type = "bw_on_cd" }),
+        "After the 30s ledger window the legacy shim must report off-CD")
+end)
+
+test("BM PL: new rules use cd_remaining via the Engine condition evaluator", function()
+    local p = P("Hunter.BM.PackLeader")
+    -- Before any cast the ledger reports 0 remaining.
+    local Engine = TrueShot.Engine
+    assert_false(Engine:EvalCondition({ type = "cd_remaining", spellID = 19574, op = ">", value = 0 }),
+        "cd_remaining > 0 should be false before any BW cast")
+    -- After a cast the engine-level condition must fire immediately (same-cast
+    -- guarantee relies on Core.lua calling CDLedger BEFORE Engine:OnSpellCast).
+    p:OnSpellCast(19574)
+    assert_true(Engine:EvalCondition({ type = "cd_remaining", spellID = 19574, op = ">", value = 0 }),
+        "Immediately after cast, cd_remaining > 0 must evaluate true for the " ..
+        "BW BLACKLIST_CONDITIONAL rule")
+    advance_time(30.1)
+    assert_false(Engine:EvalCondition({ type = "cd_remaining", spellID = 19574, op = ">", value = 0 }),
+        "After 30s the BW CD must be released")
+end)
+
+test("BM PL: GetPhase reads CDLedger:SecondsSinceCast for the 15s burst window", function()
+    local p = P("Hunter.BM.PackLeader")
+    assert_true(p:GetPhase() == nil,
+        "Fresh profile has no BW cast -> no Burst phase")
+    p:OnSpellCast(19574)
+    assert_true(p:GetPhase() == "Burst",
+        "Immediately after BW cast the profile must report Burst phase")
+    advance_time(14)
+    assert_true(p:GetPhase() == "Burst",
+        "Still inside the 15s window")
+    advance_time(2)
+    assert_true(p:GetPhase() == nil,
+        "After 16s the 15s Burst window has closed even though the 30s CD is still running")
+end)
+
+test("BM PL: Wild Thrash timer persists across OnCombatEnd (ledger-owned)", function()
+    local p = P("Hunter.BM.PackLeader")
+    p:OnSpellCast(1264359)
+    assert_true(p:EvalCondition({ type = "wt_on_cd" }))
+    p:OnCombatEnd()
+    -- Intentional semantic change vs pre-v0.25.0: CDs persist across combat
+    -- end because real in-game cooldowns do. The old profile-local timer
+    -- reset here; the ledger intentionally does not.
+    assert_true(p:EvalCondition({ type = "wt_on_cd" }),
+        "Post-v0.25.0: Wild Thrash CD must survive combat end, mirroring " ..
+        "real WoW cooldown behaviour")
 end)
 
 test("BM PL: Wild Thrash does NOT clear Nature's Ally flag", function()

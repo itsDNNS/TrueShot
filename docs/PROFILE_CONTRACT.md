@@ -144,3 +144,22 @@ SUPPRESS KillCommand WHEN last_cast_was_kc
 ```
 
 But the framework should only expose a declarative rule when the engine has a real, legal signal behind it.
+
+## Engine-level State Conditions
+
+Some conditions are owned by the `State/` layer rather than by individual profiles. They are registered by the engine or by a `State/` module and are available in every profile context.
+
+| Condition | Owner | Meaning |
+| --- | --- | --- |
+| `ac_suggested(spellID)` | `Engine` | Assisted Combat currently surfaces this spell in its primary or rotation suggestions. |
+| `spell_charges(spellID, op, value)` | `Engine` | Charge-count read through `C_Spell.GetSpellCharges` (validated non-secret). |
+| `spell_glowing(spellID)` | `Engine` | Blizzard's proc-glow overlay is active on this spell. |
+| `target_count(op, value)` | `Engine` | Hostile nameplate count via `C_NamePlate.GetNamePlates`. |
+| `target_casting` | `Engine` | `UnitCastingInfo("target")` / `UnitChannelInfo("target")` is non-nil. |
+| `in_combat` | `Engine` | `UnitAffectingCombat("player")`. |
+| `usable(spellID)` | `Engine` | `C_Spell.IsSpellUsable` passthrough (CD-blind, use with care). |
+| `resource(powerType, op, value)` | `Engine` | `UnitPower("player", powerType)` - treat as heuristic until validated. |
+| **`cd_ready(spellID)`** | **`State/CDLedger`** | **Tracked spell is not on cooldown.** |
+| **`cd_remaining(spellID, op, value)`** | **`State/CDLedger`** | **Seconds until the tracked spell is ready, compared against `value`.** |
+
+New profile rules that depend on cooldown readiness should use `cd_ready` or `cd_remaining` rather than a profile-local `*_on_cd` timer. Profile-local `*_on_cd` conditions remain valid as backward-compat shims, but new code should not add them.

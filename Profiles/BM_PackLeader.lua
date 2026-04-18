@@ -18,11 +18,15 @@
 --   Overlay profile on Blizzard Assisted Combat.
 --   Does NOT simulate hidden buff/resource state (see docs/API_CONSTRAINTS.md).
 --   Inline tags "[src §<section> #N]" reference the priority number in the primary source.
+--
+-- PILOT MIGRATION (v0.25.0, issue #84)
+--   This profile is the first consumer of State/CDLedger. Cooldown tracking for
+--   Bestial Wrath and Wild Thrash no longer lives on profile-local timestamps;
+--   the ledger owns `cd_remaining(spellID, op, value)`. The legacy
+--   `bw_on_cd` / `wt_on_cd` conditions remain as thin EvalCondition shims so
+--   user-forked custom profiles in SavedVariables keep working.
 
 local Engine = TrueShot.Engine
-
-local BW_COOLDOWN = 30
-local WT_COOLDOWN = 8
 
 ------------------------------------------------------------------------
 -- Profile definition
@@ -34,12 +38,10 @@ local Profile = {
     specID = 253,
     -- No markerSpell: this profile serves as the BM fallback
     -- when Dark Ranger's Black Arrow marker does not match
-    version = 2,
+    version = 3,
 
     state = {
-        lastBWCast = 0,
         lastCastWasKC = false,
-        lastWildThrashCast = 0,
         -- Stampede: armed by Bestial Wrath, consumed on the next Kill Command.
         -- Source: Azortharion 2026-04-10 - "Activate Bestial Wrath. Once activated,
         -- your next Kill Command will spawn a Stampede."
@@ -65,7 +67,7 @@ local Profile = {
             right = {
                 type = "and",
                 left  = { type = "target_count", op = ">=", value = 2 },
-                right = { type = "not", inner = { type = "wt_on_cd" } },
+                right = { type = "cd_ready", spellID = 1264359 },
             },
         },
     },
@@ -84,7 +86,7 @@ local Profile = {
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 19574,
-            condition = { type = "bw_on_cd" },
+            condition = { type = "cd_remaining", spellID = 19574, op = ">", value = 0 },
         },
 
         -- [src §ST #2b] Stampede: "your next Kill Command will spawn a Stampede"
@@ -149,9 +151,7 @@ local Profile = {
 ------------------------------------------------------------------------
 
 function Profile:ResetState()
-    self.state.lastBWCast = 0
     self.state.lastCastWasKC = false
-    self.state.lastWildThrashCast = 0
     self.state.stampedeAvailable = false
 end
 
@@ -159,12 +159,10 @@ function Profile:OnSpellCast(spellID)
     local s = self.state
 
     if spellID == 19574 then -- Bestial Wrath
-        s.lastBWCast = GetTime()
         s.lastCastWasKC = false
         s.stampedeAvailable = true -- first KC after BW will trigger Stampede
 
     elseif spellID == 1264359 then -- Wild Thrash
-        s.lastWildThrashCast = GetTime()
         -- NOTE: Wild Thrash does NOT grant Nature's Ally.
         -- Do NOT clear lastCastWasKC here. KC -> WT -> KC is invalid.
 
@@ -179,12 +177,15 @@ end
 
 function Profile:OnCombatEnd()
     self.state.lastCastWasKC = false
-    self.state.lastWildThrashCast = 0
     self.state.stampedeAvailable = false
 end
 
 ------------------------------------------------------------------------
 -- Profile-specific condition evaluation
+--
+-- `bw_on_cd` / `wt_on_cd` are kept as backward-compat shims that delegate to
+-- the CDLedger. User-forked custom profiles stored in SavedVariables may still
+-- reference these IDs; new rules should use `cd_remaining(spellID, op, value)`.
 ------------------------------------------------------------------------
 
 function Profile:EvalCondition(cond)
@@ -193,16 +194,22 @@ function Profile:EvalCondition(cond)
     if cond.type == "last_cast_was_kc" then
         return s.lastCastWasKC
 
-    elseif cond.type == "bw_on_cd" then
-        if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) < BW_COOLDOWN
-
-    elseif cond.type == "wt_on_cd" then
-        if s.lastWildThrashCast == 0 then return false end
-        return (GetTime() - s.lastWildThrashCast) < WT_COOLDOWN
-
     elseif cond.type == "stampede_available" then
         return s.stampedeAvailable
+
+    elseif cond.type == "bw_on_cd" then
+        -- Legacy shim: Bestial Wrath on cooldown.
+        if TrueShot.CDLedger then
+            return TrueShot.CDLedger:IsOnCooldown(19574)
+        end
+        return false
+
+    elseif cond.type == "wt_on_cd" then
+        -- Legacy shim: Wild Thrash on cooldown.
+        if TrueShot.CDLedger then
+            return TrueShot.CDLedger:IsOnCooldown(1264359)
+        end
+        return false
 
     end
 
@@ -215,11 +222,11 @@ end
 
 function Profile:GetDebugLines()
     local s = self.state
-    local bwElapsed = s.lastBWCast > 0 and (GetTime() - s.lastBWCast) or 0
+    local bwRemaining = TrueShot.CDLedger and TrueShot.CDLedger:SecondsUntilReady(19574) or 0
     return {
-        "  BW CD: " .. (s.lastBWCast > 0
-            and string.format("%.1fs elapsed (est ~%ds)", bwElapsed, BW_COOLDOWN)
-            or "not cast yet"),
+        "  BW CD: " .. (bwRemaining > 0
+            and string.format("%.1fs remaining", bwRemaining)
+            or "ready"),
         "  Last cast was KC: " .. tostring(s.lastCastWasKC),
         "  Stampede armed: " .. tostring(s.stampedeAvailable),
     }
@@ -227,12 +234,17 @@ end
 
 ------------------------------------------------------------------------
 -- Phase detection (for overlay display)
+--
+-- "Burst" while the Bestial Wrath buff window is assumed active (~15s after
+-- the cast). Uses CDLedger's cast-timestamp rather than a duplicated profile
+-- timer.
 ------------------------------------------------------------------------
 
 function Profile:GetPhase()
     if not UnitAffectingCombat("player") then return nil end
-    local s = self.state
-    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15 then return "Burst" end
+    if not TrueShot.CDLedger then return nil end
+    local sinceCast = TrueShot.CDLedger:SecondsSinceCast(19574)
+    if sinceCast and sinceCast < 15 then return "Burst" end
     return nil
 end
 
@@ -243,10 +255,15 @@ end
 Engine:RegisterProfile(Profile)
 
 if TrueShot.CustomProfile then
+    -- Schema includes deprecated `bw_on_cd` / `wt_on_cd` so Visual Rule Builder
+    -- nodes authored before v0.25.0 still round-trip through the picker. New
+    -- rules should prefer the engine-level `cd_ready` / `cd_remaining` entries
+    -- (registered in CustomProfile). The shim EvalCondition cases above
+    -- delegate both legacy IDs to the CDLedger.
     TrueShot.CustomProfile.RegisterConditionSchema("Hunter.BM.PackLeader", {
-        { id = "last_cast_was_kc",   label = "Last Cast Was Kill Command", params = {} },
-        { id = "bw_on_cd",           label = "Bestial Wrath On Cooldown",  params = {} },
-        { id = "wt_on_cd",           label = "Wild Thrash On Cooldown",    params = {} },
+        { id = "last_cast_was_kc",   label = "Last Cast Was Kill Command",         params = {} },
         { id = "stampede_available", label = "Stampede Armed (first KC after BW)", params = {} },
+        { id = "bw_on_cd",           label = "Bestial Wrath On Cooldown (legacy, use cd_remaining)", params = {} },
+        { id = "wt_on_cd",           label = "Wild Thrash On Cooldown (legacy, use cd_remaining)",   params = {} },
     })
 end

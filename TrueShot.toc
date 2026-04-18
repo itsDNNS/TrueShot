@@ -11,6 +11,7 @@
 ## OptionalDeps: Masque
 
 Engine.lua
+State/CDLedger.lua
 CustomProfile.lua
 Profiles/BM_DarkRanger.lua
 Profiles/BM_PackLeader.lua

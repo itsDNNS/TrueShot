@@ -165,6 +165,12 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
         local unit, _, spellID = ...
         if unit == "player" and spellID then
+            -- CDLedger runs alongside the profile dispatch so timer state is
+            -- updated before any condition (including the one that just fired
+            -- this cast through MarkDirty) re-evaluates.
+            if TrueShot.CDLedger and TrueShot.CDLedger.OnSpellCastSucceeded then
+                TrueShot.CDLedger:OnSpellCastSucceeded(spellID)
+            end
             Engine:OnSpellCast(spellID)
             if Display then
                 if Display.OnSpellCastSucceeded then

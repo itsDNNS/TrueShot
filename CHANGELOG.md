@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.25.0 - 2026-04-18
+
+### Added
+- **`State/CDLedger.lua`**: central, data-driven cooldown tracker for Hunter rotational spells. Listens to `UNIT_SPELLCAST_SUCCEEDED`, resolves base cooldown through `GetSpellBaseCooldown` (with hardcoded `spec.base_ms` fallback), applies haste scaling through `UnitSpellHaste("player")` for spells flagged `haste_scaled`. Every live API read is guarded with `pcall` + `issecretvalue` and degrades cleanly to the spec fallback when the client returns secret values. Closes [#84](https://github.com/itsDNNS/TrueShot/issues/84).
+- **Engine conditions `cd_ready(spellID)` and `cd_remaining(spellID, op, value)`**: new first-class condition types available to every profile and to the Visual Rule Builder. Registered in `CustomProfile` so they show up in the picker alongside `spell_charges`, `spell_glowing`, etc.
+- **`State/` framework layer**: documented in `docs/FRAMEWORK.md`. Owns shared, class-agnostic state that multiple profiles query through engine conditions.
+- **`/ts probe cd`**: new probe command that reports `GetSpellBaseCooldown`, `UnitSpellHaste("player")`, and `C_Spell.GetSpellCooldown` values (plus secrecy) for every spell the ledger tracks. Feeds into `docs/SIGNAL_VALIDATION.md` classifications.
+- **`tests/test_cd_ledger.lua`**: 19 scenario tests covering spec coverage, base-CD resolution (spec fallback, live override, secret-guard), haste scaling (flag on/off, API present/absent), reset and reduction hooks, lifecycle (OnCombatEnd does not reset, Reset clears all), and secret-spellID protection.
+
+### Changed
+- **`Profiles/BM_PackLeader.lua` pilot migration**: drops `BW_COOLDOWN`, `WT_COOLDOWN`, `lastBWCast`, and `lastWildThrashCast` in favour of ledger-owned timing. Rules now use `cd_ready` / `cd_remaining` directly. Phase detection ("Burst" window) reads `CDLedger:SecondsSinceCast(Bestial Wrath)` instead of a profile-local timestamp. Legacy `bw_on_cd` / `wt_on_cd` conditions remain as thin backward-compat shims that delegate to the ledger, and their schema entries are kept (marked legacy) so Visual Rule Builder nodes authored before v0.25.0 still round-trip through the picker. User-forked custom profiles in SavedVariables keep evaluating correctly.
+- **Intentional semantic shift**: the ledger preserves cooldown state across `PLAYER_REGEN_ENABLED` (real in-game cooldowns persist across combat end). The pre-v0.25.0 `BM_PackLeader` cleared `lastWildThrashCast` on combat end; the new ledger-owned timer stays through. The `OnCombatEnd` no-op is covered by a test.
+- **`docs/SIGNAL_VALIDATION.md`** adds three new signal entries (Base Cooldown Lookup, Spell Haste, Cooldown Read Per-Spell) and lists `/ts probe cd` under the probe commands.
+- **`docs/PROFILE_CONTRACT.md`** enumerates the engine-level state conditions and documents `cd_ready` / `cd_remaining` as the preferred path for new rules.
+- **`docs/API_CONSTRAINTS.md`** adds the CDLedger pattern to the approved-heuristic list.
+
 ## v0.24.0 - 2026-04-18
 
 ### Added
