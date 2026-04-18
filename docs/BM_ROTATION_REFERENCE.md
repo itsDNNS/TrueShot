@@ -1,8 +1,16 @@
 # BM Rotation Reference
 
-Source: Azortharion (Icy Veins BM Guide + Video Guide for Midnight Season 1)
-Video: https://youtu.be/GQiL-H8IZwA
-Supplementary: WCL analysis (40+ raid parses, 157 M+ parses)
+## Sources
+
+| Tier | Source | URL | Stamp |
+| --- | --- | --- | --- |
+| primary | Azortharion - Icy Veins BM Hunter Rotation | https://www.icy-veins.com/wow/beast-mastery-hunter-pve-dps-rotation-cooldowns-abilities | Guide 2026-04-10 / Patch 12.0.4 |
+| primary | Azortharion - BM Video Guide | https://youtu.be/GQiL-H8IZwA | Midnight Season 1 |
+| cross-check | SimC midnight branch | https://github.com/simulationcraft/simc/tree/midnight/ActionPriorityLists/default `hunter_beast_mastery.simc` | Midnight default APL |
+| cross-check | Wowhead - Tarlo | https://www.wowhead.com/guide/classes/hunter/beast-mastery/rotation-cooldowns-pve-dps | Patch 12.0.1, updated 2026-03-21 |
+| supplementary | WCL parse analysis (40+ raid, 157 M+) | private notes | aggregated prior to Midnight Season 1 |
+
+**Last reviewed: 2026-04-18** against the sources above.
 
 This document is the authoritative reference for rule ordering in `Profiles/BM_DarkRanger.lua` and `Profiles/BM_PackLeader.lua`. When profile rules are changed, verify them against this priority list.
 
@@ -71,8 +79,11 @@ Same as ST but add **Wild Thrash every 8 seconds on cooldown**. Wild Thrash:
 |------|------|-----------|-----------|
 | Call Pet / Revive Pet / Counter Shot | BLACKLIST | always | Utility, never rotation |
 | BW on CD | BLACKLIST_CONDITIONAL | bw_on_cd | Suppress when on CD |
+| **Stampede (first KC after BW)** | **PIN** | **stampede_available** | **[src Azortharion 2026-04-10] "Activate Bestial Wrath. Once activated, your next Kill Command will spawn a Stampede." Flag is armed on BW cast, cleared on the next KC cast.** |
+| KC proc glow | PIN | spell_glowing(KC) AND NOT last_cast_was_kc | Alpha Predator / Call of the Wild / Howl of the Pack Leader proc |
 | Wild Thrash AoE | AoE Hint | in_combat AND target_count >= 2 AND NOT wt_on_cd | On CD in multi-target |
 | KC anti-repeat | BLACKLIST_CONDITIONAL | last_cast_was_kc | Nature's Ally enforcement |
+| Cobra Shot Focus pool | BLACKLIST_CONDITIONAL | focus<65 AND KC usable | Avoid depleting Focus before KC |
 
 ---
 
@@ -168,7 +179,7 @@ Dump all BS charges before BW. Holding a KC charge to enter BW with 2 is worth i
 | Element | Reason |
 |---------|--------|
 | Beast Cleave uptime | Buff tracking is secret. Wild Thrash on CD provides 100% uptime. |
-| Focus management | UnitPower("player", 2) is readable (validated 2026-04-10). Resource condition type available in Engine for Focus pooling. |
+| Focus management | `UnitPower("player", 2)` is currently called via the `resource` condition type in Engine for a conservative Focus-pool heuristic. docs/API_CONSTRAINTS.md classifies Focus as secret/unsafe; a prior local note claimed the call was readable (2026-04-10) but this has not been re-probed under `/ts probe`. Treat the behaviour as heuristic until signal status is re-validated. |
 | Opener sequence | AC handles initial spells, profile rules take over after first cast events. |
 | Black Arrow availability (>80% HP / proc) | Proc state is secret. AC handles BA availability. |
 | Trinket usage | External to rotation logic. |

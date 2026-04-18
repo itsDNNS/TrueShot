@@ -1,6 +1,30 @@
--- TrueShot Profile: Marksmanship / Sentinel (Spec 254)
+-- TrueShot Profile: Marksmanship / Sentinel (specID 254)
+-- Hero path: Sentinel (no markerSpell - MM fallback when Dark Ranger's Black Arrow marker is not known)
 -- Cast-event state machine for Trueshot window, Volley anti-overlap,
--- and Moonlight Chakram filler timing
+-- and Moonlight Chakram filler timing.
+--
+-- PRIMARY SOURCE
+--   Author:        Azortharion
+--   Guide:         Marksmanship Hunter DPS Rotation, Cooldowns, and Abilities - Midnight Season 1
+--   URL:           https://www.icy-veins.com/wow/marksmanship-hunter-pve-dps-rotation-cooldowns-abilities
+--   Guide updated: 2026-04-09
+--   Verified:      2026-04-18
+--   Patch:         12.0.4 (Midnight Season 1)
+--
+-- CROSS-CHECK SOURCES
+--   SimC midnight branch: ActionPriorityLists/default/hunter_marksmanship.simc
+--   Wowhead MM Hero:      https://www.wowhead.com/guide/classes/hunter/marksmanship/hero-talents
+--                         "When you activate Trueshot, the Trueshot button itself will turn
+--                          into Moonlight Chakram, a filler ability that does heavy damage."
+--                         => Chakram is castable only inside the Trueshot window on Sentinel;
+--                            the BLACKLIST_CONDITIONAL below mirrors that spell-availability fact.
+--
+-- DESIGN SCOPE
+--   Overlay profile on Blizzard Assisted Combat.
+--   Sentinel lane is intentionally leaner than Dark Ranger: Trueshot/Volley anti-
+--   overlap, post-Rapid-Fire Trueshot timing, and Moonlight Chakram as a late
+--   Trueshot-window filler only.
+--   Inline tags "[src §<section> #N]" reference the priority number in the primary source.
 
 local Engine = TrueShot.Engine
 
@@ -61,25 +85,27 @@ local Profile = {
     },
 
     rules = {
-        -- Filter utility spells
+        -- Filter utility spells (never part of the damage rotation).
         { type = "BLACKLIST", spellID = SPELLS.CallPet1 },
         { type = "BLACKLIST", spellID = SPELLS.RevivePet },
         { type = "BLACKLIST", spellID = SPELLS.CounterShot },
 
-        -- Anti-overlap: never Trueshot right after Volley (Double Tap waste)
+        -- [src §Sequencing "anti-overlap"] "Never cast Volley and Trueshot back-
+        -- to-back in any order." Enforced in both directions.
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = SPELLS.Trueshot,
             condition = { type = "volley_recent", seconds = 2 },
         },
-        -- Anti-overlap: never Volley right after Trueshot
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = SPELLS.Volley,
             condition = { type = "trueshot_just_cast", seconds = 2 },
         },
 
-        -- Trueshot: only after Rapid Fire and not after Volley
+        -- [src §Sequencing "Rapid Fire into Trueshot"] "Ideal setup follows
+        -- pattern: Rapid Fire -> Trueshot -> Aimed Shot." Pair the RF-recency
+        -- signal with the legal ac_suggested readiness gate for TS.
         {
             type = "PIN",
             spellID = SPELLS.Trueshot,
@@ -95,14 +121,20 @@ local Profile = {
             },
         },
 
-        -- Block Moonlight Chakram outside Trueshot window (AC may still recommend it)
+        -- [src §Sentinel Hero, Wowhead] Moonlight Chakram replaces the Trueshot
+        -- button during the Trueshot buff, so it can only be cast inside the TS
+        -- window on Sentinel. Mirror that spell-availability fact by blacklisting
+        -- Chakram outside trueshot_active (guards against stray AC recommendations).
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = SPELLS.MoonlightChakram,
             condition = { type = "not", inner = { type = "trueshot_active" } },
         },
 
-        -- Moonlight Chakram: filler late in Trueshot when out of Aimed Shots
+        -- [src §ST #7] "Moonlight Chakram (filler when no Aimed Shots)" - elevate
+        -- Chakram only when AC already recommends it AND Aimed Shot has no
+        -- charges. PREFER (not PIN) so AC's own ordering wins when it already
+        -- leads with Chakram.
         {
             type = "PREFER",
             spellID = SPELLS.MoonlightChakram,

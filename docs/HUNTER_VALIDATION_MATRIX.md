@@ -8,12 +8,16 @@ Its purpose is simple:
 - separate static confidence from live combat proof
 - give each Hunter profile a repeatable checklist before `1.0`
 
+**Last source review: 2026-04-18** against the primary sources listed in each spec's rotation reference. Patch: 12.0.4 (Midnight Season 1). Primary author: Azortharion (Icy Veins).
+
 Use this together with:
 
 - [Project Goals](PROJECT_GOALS.md)
 - [API Constraints](API_CONSTRAINTS.md)
 - [Signal Validation](SIGNAL_VALIDATION.md)
 - [BM Rotation Reference](BM_ROTATION_REFERENCE.md)
+- [MM Rotation Reference](MM_ROTATION_REFERENCE.md)
+- [SV Rotation Reference](SV_ROTATION_REFERENCE.md)
 
 ## Readiness Model
 
@@ -97,6 +101,7 @@ These are the minimum live checks still needed before Hunter can honestly be cal
 
 - `Nature's Ally` / `Kill Command` weaving still behaves correctly in combat
 - `Bestial Wrath` timing and debug output align with the shipped profile behavior
+- **Stampede PIN**: first `Kill Command` after `Bestial Wrath` is surfaced as `reason = "Stampede"` in the queue; `stampedeAvailable` clears on that KC and re-arms on the next `Bestial Wrath` cast (shipped v0.24.0, sourced to Azortharion 2026-04-10).
 
 ### MM Dark Ranger
 
@@ -117,6 +122,18 @@ These are the minimum live checks still needed before Hunter can honestly be cal
 
 - `Wildfire Bomb` charge-cap spend behaves correctly in practice
 - `Moonlight Chakram` / `Flamefang` timing behaves correctly
+
+## Non-Hunter Isolation
+
+Non-Hunter profiles (Demon Hunter, Druid, Mage - foundation/alpha) ship in the same addon and register themselves alongside Hunter profiles, but they cannot affect Hunter loading or runtime. The isolation is mechanical, not advisory:
+
+1. `Engine:RegisterProfile(profile)` stores each profile under its own `specID` in `TrueShot.Profiles[specID]`.
+2. `Engine:ActivateProfile(specID)` only considers `TrueShot.Profiles[specID]` for the current spec.
+3. A Hunter on `253/254/255` therefore never sees Havoc (`577`), Feral (`103`), Fire (`63`), etc. as activation candidates.
+
+Profile files contain no top-level API calls beyond registration, so a non-Hunter profile failing cannot break the load chain for Hunter profiles. `luac -p` is run on every profile in `Profiles/` as a static syntax gate before release.
+
+If a non-Hunter profile ever needs to be shipped-but-disabled for a Hunter-only release, the surgical path is to remove its line from `TrueShot.toc` - not to edit the profile file.
 
 ## Release Rule
 

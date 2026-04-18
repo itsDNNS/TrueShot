@@ -1,6 +1,27 @@
--- TrueShot Profile: Marksmanship / Dark Ranger (Spec 254)
+-- TrueShot Profile: Marksmanship / Dark Ranger (specID 254)
+-- Hero path: Dark Ranger (marker: Black Arrow 466930 via IsPlayerSpell)
 -- Cast-event state machine for Black Arrow, Trueshot window, Wailing Arrow,
--- and Volley/Trueshot anti-overlap
+-- and Volley/Trueshot anti-overlap.
+--
+-- PRIMARY SOURCE
+--   Author:        Azortharion
+--   Guide:         Marksmanship Hunter DPS Rotation, Cooldowns, and Abilities - Midnight Season 1
+--   URL:           https://www.icy-veins.com/wow/marksmanship-hunter-pve-dps-rotation-cooldowns-abilities
+--   Guide updated: 2026-04-09
+--   Verified:      2026-04-18
+--   Patch:         12.0.4 (Midnight Season 1)
+--
+-- CROSS-CHECK SOURCES
+--   SimC midnight branch: ActionPriorityLists/default/hunter_marksmanship.simc
+--   Wowhead:              https://www.wowhead.com/guide/classes/hunter/marksmanship/rotation-cooldowns-pve-dps
+--                         (Patch 12.0.1, updated 2026/04/15)
+--
+-- DESIGN SCOPE
+--   Overlay profile on Blizzard Assisted Combat.
+--   Dark Ranger is the Black-Arrow-as-Kill-Shot lane; the rules below focus on
+--   the Trueshot -> BA -> WA -> BA opener, WF proc-window BA priority, and the
+--   Trueshot <-> Volley anti-overlap (Double Tap).
+--   Inline tags "[src §<section> #N]" reference the priority number in the primary source.
 
 local Engine = TrueShot.Engine
 
@@ -58,25 +79,28 @@ local Profile = {
     },
 
     rules = {
-        -- Filter utility spells
+        -- Filter utility spells (never part of the damage rotation).
         { type = "BLACKLIST", spellID = SPELLS.CallPet1 },
         { type = "BLACKLIST", spellID = SPELLS.RevivePet },
         { type = "BLACKLIST", spellID = SPELLS.CounterShot },
 
-        -- Anti-overlap: never Trueshot right after Volley (Double Tap waste)
+        -- [src §Sequencing "anti-overlap"] "Never cast Volley and Trueshot back-
+        -- to-back in any order, as this wastes Double Tap." Enforced in both
+        -- directions below.
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = SPELLS.Trueshot,
             condition = { type = "volley_recent", seconds = 2 },
         },
-        -- Anti-overlap: never Volley right after Trueshot
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = SPELLS.Volley,
             condition = { type = "trueshot_just_cast", seconds = 2 },
         },
 
-        -- TS Opener: Black Arrow immediately after Trueshot (free proc)
+        -- [src §DR-Burst] "Trueshot -> Black Arrow -> Wailing Arrow -> Black
+        -- Arrow sequence maximizes proc utilization within cooldown windows."
+        -- Step 1: BA immediately after Trueshot (the free opener proc).
         {
             type = "PIN",
             spellID = SPELLS.BlackArrow,
@@ -88,7 +112,8 @@ local Profile = {
             },
         },
 
-        -- TS Opener: Wailing Arrow after spending the first BA proc
+        -- [src §DR-Burst step 3] Wailing Arrow after the first BA is spent
+        -- (procs the second free BA while still inside the Trueshot window).
         {
             type = "PIN",
             spellID = SPELLS.WailingArrow,
@@ -104,7 +129,9 @@ local Profile = {
             },
         },
 
-        -- General Withering Fire: Black Arrow is highest priority
+        -- [src §ST #1] "Black Arrow (cast on cooldown)" - Dark Ranger ranks BA as
+        -- the top-line spell. This PIN covers the extended BA-ready window the
+        -- profile models after Trueshot (see state.witheringFireUntil).
         {
             type = "PIN",
             spellID = SPELLS.BlackArrow,
@@ -116,7 +143,9 @@ local Profile = {
             },
         },
 
-        -- Trueshot: only after Rapid Fire and not after Volley
+        -- [src §Sequencing "Rapid Fire into Trueshot"] "Ideal setup follows
+        -- pattern: Rapid Fire -> Trueshot -> Aimed Shot." Pair the RF-recency
+        -- signal with the legal ac_suggested readiness gate for TS.
         {
             type = "PIN",
             spellID = SPELLS.Trueshot,
@@ -132,7 +161,9 @@ local Profile = {
             },
         },
 
-        -- Outside Withering Fire: prefer Black Arrow when ready
+        -- [src §ST #1 outside WF] BA outside the modelled WF proc window is a
+        -- soft hint, not an override: PREFER only. If AC already surfaces BA the
+        -- rule is a no-op; otherwise the queue bumps BA ahead of plain filler.
         {
             type = "PREFER",
             spellID = SPELLS.BlackArrow,

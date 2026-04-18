@@ -1,6 +1,31 @@
--- TrueShot Profile: Survival / Pack Leader (Spec 255)
+-- TrueShot Profile: Survival / Pack Leader (specID 255)
+-- Hero path: Pack Leader (no markerSpell - SV fallback when Sentinel's Moonlight Chakram marker is not known)
 -- Cast-event state machine for Takedown window, Stampede sequencing,
--- WFB charge management, and Flamefang Pitch timing
+-- WFB charge management, and Flamefang Pitch timing.
+--
+-- PRIMARY SOURCE
+--   Author:        Azortharion
+--   Guide:         Survival Hunter DPS Rotation, Cooldowns, and Abilities - Midnight Season 1
+--   URL:           https://www.icy-veins.com/wow/survival-hunter-pve-dps-rotation-cooldowns-abilities
+--   Guide updated: 2026-03-27
+--   Verified:      2026-04-18
+--   Patch:         12.0.4 (Midnight Season 1)
+--
+-- CROSS-CHECK SOURCES
+--   SimC midnight branch: ActionPriorityLists/default/hunter_survival.simc
+--                         (plst / plcleave action lists)
+--   Wowhead:              https://www.wowhead.com/guide/classes/hunter/survival/rotation-cooldowns-pve-dps
+--                         (Patch 12.0.1, updated 2026-03-24)
+--
+-- DESIGN SCOPE
+--   Overlay profile on Blizzard Assisted Combat.
+--   Pack Leader's highest-value override is the Stampede/Howl-of-the-Pack-Leader
+--   trigger: "Takedown immediately procs Howl of the Pack Leader, causing your
+--   next Kill Command to summon a Beast. Your first Kill Command inside Takedown
+--   will also launch a Stampede." (Azortharion §PL Takedown Burst Window.)
+--   Tip-of-the-Spear stacks, Sentinel's Mark, and Fury-of-the-Wyvern are hidden
+--   buff state and are deliberately not modelled (see docs/API_CONSTRAINTS.md).
+--   Inline tags "[src §<section> #N]" reference the priority number in the primary source.
 
 local Engine = TrueShot.Engine
 
@@ -51,12 +76,15 @@ local Profile = {
     },
 
     rules = {
-        -- Filter utility spells
+        -- Filter utility spells (never part of the damage rotation).
         { type = "BLACKLIST", spellID = SPELLS.Harpoon },
         { type = "BLACKLIST", spellID = SPELLS.CallPet1 },
         { type = "BLACKLIST", spellID = SPELLS.RevivePet },
 
-        -- Stampede: first KC after Takedown triggers Stampede
+        -- [src §PL Takedown Burst] "Your first Kill Command inside Takedown will
+        -- also launch a Stampede." Pin KC for the first cast inside the 8s
+        -- Takedown buff window; once KC has fired inside that window the flag
+        -- flips and this rule no-ops until the next Takedown.
         {
             type = "PIN",
             spellID = SPELLS.KillCommand,
@@ -68,7 +96,10 @@ local Profile = {
             },
         },
 
-        -- Wildfire Bomb: spend at charge cap
+        -- [src §PL ST "Wildfire Bomb only to extend Fury of the Wyvern"] The
+        -- Wyvern-extension heuristic would need hidden buff state; ship the
+        -- conservative charge-cap proxy instead, which keeps the "never waste a
+        -- charge" intent under the Midnight API surface.
         {
             type = "PREFER",
             spellID = SPELLS.WildfireBomb,
@@ -76,7 +107,10 @@ local Profile = {
             condition = { type = "wfb_charges", op = "==", value = 2 },
         },
 
-        -- Boomstick: burst during Takedown window (suppress when on CD)
+        -- [src §PL ST #4 / AoE #5] "Boomstick" - generally high priority per
+        -- Azortharion. Shipped profile only PREFERs it inside Takedown (with a
+        -- local-timer CD gate) because outside the burst window AC already
+        -- surfaces it well; a wider PIN would fight AC more than it helps.
         {
             type = "PREFER",
             spellID = SPELLS.Boomstick,
@@ -88,7 +122,9 @@ local Profile = {
             },
         },
 
-        -- Flamefang Pitch: use when ready
+        -- [src §PL ST #3] "Flamefang Pitch on cooldown" - gate the PREFER on
+        -- ac_suggested so the override does not fire when AC already knows the
+        -- spell is not castable (keeps the rule legal under the CD-secret API).
         {
             type = "PREFER",
             spellID = SPELLS.FlamefangPitch,

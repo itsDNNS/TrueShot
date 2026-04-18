@@ -1,5 +1,25 @@
--- TrueShot Profile: Beast Mastery / Dark Ranger (Spec 253)
--- Cast-event state machine for Black Arrow, Bestial Wrath, Wailing Arrow
+-- TrueShot Profile: Beast Mastery / Dark Ranger (specID 253)
+-- Hero path: Dark Ranger (marker: Black Arrow 466930 via IsPlayerSpell)
+-- Cast-event state machine for Black Arrow, Bestial Wrath, Wailing Arrow.
+--
+-- PRIMARY SOURCE
+--   Author:        Azortharion
+--   Guide:         Beast Mastery Hunter DPS Rotation, Cooldowns, and Abilities - Midnight Season 1
+--   URL:           https://www.icy-veins.com/wow/beast-mastery-hunter-pve-dps-rotation-cooldowns-abilities
+--   Guide updated: 2026-04-10
+--   Verified:      2026-04-18
+--   Patch:         12.0.4 (Midnight Season 1)
+--
+-- CROSS-CHECK SOURCES
+--   SimC midnight branch: ActionPriorityLists/default/hunter_beast_mastery.simc
+--   Wowhead:              https://www.wowhead.com/guide/classes/hunter/beast-mastery/rotation-cooldowns-pve-dps
+--                         (Tarlo, Patch 12.0.1, updated 2026-03-21)
+--
+-- DESIGN SCOPE
+--   Overlay profile on Blizzard Assisted Combat.
+--   Dark Ranger is the Withering-Fire/Black-Arrow lane; the rules below focus on
+--   the BA-inside-WF window, WA-tail-of-WF, and Nature's Ally weaving.
+--   Inline tags "[src §<section> #N]" reference the priority number in the primary source.
 
 local Engine = TrueShot.Engine
 
@@ -55,22 +75,25 @@ local Profile = {
     },
 
     rules = {
-        -- Filter utility spells
+        -- Filter utility spells (never part of the damage rotation).
         { type = "BLACKLIST", spellID = 883 },    -- Call Pet 1
         { type = "BLACKLIST", spellID = 982 },    -- Revive Pet
         { type = "BLACKLIST", spellID = 147362 }, -- Counter Shot (user preference)
 
-        -- Bestial Wrath: suppress only when on CD
-        -- Guide: dump BS charges before BW, hold a KC charge to enter with 2
+        -- [src §ST #2] "Bestial Wrath (use all Barbed Shot charges first)" -
+        -- shipped rule leaves BW available unless on CD. The BS-charge gate was
+        -- removed in v0.9.0 after a WCL cross-check showed top parses press BW
+        -- immediately; Azortharion 2026-04-10 text still recommends the dump,
+        -- so this stays a LIVE-verification follow-up, not a mechanical rule.
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 19574,
             condition = { type = "bw_on_cd" },
         },
 
-        -- During Withering Fire: Black Arrow is highest DPS priority
-        -- (WF window is only 10s - missing a BA cast is a bigger loss than
-        -- delaying a KC proc by one GCD, since the glow persists)
+        -- [src §ST #4] "Black Arrow during Withering Fire" - WF is only 10s;
+        -- the guide explicitly ranks BA-in-WF above KC-proc for the burst window
+        -- since the glow persists across the GCD but the WF cast budget does not.
         {
             type = "PIN",
             spellID = 466930, -- Black Arrow
@@ -82,8 +105,11 @@ local Profile = {
             },
         },
 
-        -- Buffed Kill Command: prio 1 outside Withering Fire when proc glow active
-        -- (Alpha Predator / Call of the Wild) - during WF, BA stays higher
+        -- [src §ST #3] "Kill Command on cooldown with Nature's Ally up" - the KC
+        -- proc glow (Alpha Predator / Call of the Wild) is a direct non-secret
+        -- signal that AC does not always prioritise on position 1. Outside WF,
+        -- promote the proc via PIN; inside WF, BA stays higher so it is only
+        -- PREFER (see below).
         {
             type = "PIN",
             spellID = 34026, -- Kill Command
@@ -99,7 +125,8 @@ local Profile = {
             },
         },
 
-        -- Buffed KC during Withering Fire: still high prio, but after BA
+        -- [src §ST #3 inside WF] Buffed KC during Withering Fire: still high
+        -- priority, but PREFER-only so BA-in-WF stays pinned.
         {
             type = "PREFER",
             spellID = 34026, -- Kill Command
@@ -115,7 +142,9 @@ local Profile = {
             },
         },
 
-        -- Wailing Arrow near end of Withering Fire (~7s left on BW = ~2.5s left on WF)
+        -- [src §ST #5] "Wailing Arrow when 7 seconds remain on Bestial Wrath" -
+        -- WF ends ~5s before BW, so "7s on BW" maps to ~2.5s remaining on WF.
+        -- The WA tail fires a free BA, keeping the BA chain inside the WF window.
         {
             type = "PREFER",
             spellID = 392060, -- Wailing Arrow
@@ -127,7 +156,8 @@ local Profile = {
             },
         },
 
-        -- Outside Withering Fire: prefer Black Arrow when ready
+        -- [src §ST #8] "Black Arrow" as a lower-priority filler outside WF.
+        -- PREFER (not PIN) so AC still wins if it already surfaces BA.
         {
             type = "PREFER",
             spellID = 466930, -- Black Arrow
@@ -139,16 +169,24 @@ local Profile = {
             },
         },
 
-        -- Nature's Ally: never Kill Command twice in a row
+        -- [src §ST "Nature's Ally"] "Never cast Kill Command twice in a row."
+        -- Wild Thrash is NOT a valid Nature's Ally filler - the state machine
+        -- preserves last_cast_was_kc across WT casts.
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 34026,
             condition = { type = "last_cast_was_kc" },
         },
 
-        -- Focus pooling: suppress Cobra Shot when Focus is too low for KC after,
-        -- but only when KC is actually castable (avoids blank icons when KC is
-        -- also blocked by Nature's Ally or on CD)
+        -- [src §ST #6 / Focus pooling] "Cobra Shot during BW if Barbed Shot <1.4
+        -- charges" - shipped profile uses the conservative Focus-pool proxy: skip
+        -- Cobra when Focus is low AND KC is castable. Avoids empty icons when KC
+        -- is also blocked (Nature's Ally / on CD).
+        -- NOTE: The underlying `resource` condition reads UnitPower("player", 2).
+        -- docs/API_CONSTRAINTS.md lists BM Focus as secret; docs/BM_ROTATION_REFERENCE.md
+        -- "Not Modeled" has a conflicting 2026-04-10 note that the call is readable.
+        -- This rule predates the Hunter-1.0 citation pass and is kept as-is pending
+        -- a live Focus probe run under `/ts probe`; treat the behaviour as heuristic.
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 56641, -- Cobra Shot
@@ -169,6 +207,7 @@ local Profile = {
 function Profile:ResetState()
     self.state.blackArrowReady = true
     self.state.lastBlackArrowCast = 0
+    self.state.lastBWCast = 0
     self.state.witheringFireUntil = 0
     self.state.wailingArrowAvailable = false
     self.state.lastCastWasKC = false

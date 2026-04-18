@@ -1,5 +1,15 @@
 # SV Rotation Reference
 
+## Sources
+
+| Tier | Source | URL | Stamp |
+| --- | --- | --- | --- |
+| primary | Azortharion - Icy Veins SV Hunter Rotation | https://www.icy-veins.com/wow/survival-hunter-pve-dps-rotation-cooldowns-abilities | Guide 2026-03-27 / Patch 12.0.4 |
+| cross-check | SimC midnight branch | https://github.com/simulationcraft/simc/tree/midnight/ActionPriorityLists/default `hunter_survival.simc` | Midnight default APL (plst, plcleave, sentst, sentcleave) |
+| cross-check | Wowhead SV Rotation | https://www.wowhead.com/guide/classes/hunter/survival/rotation-cooldowns-pve-dps | Patch 12.0.1, updated 2026-03-24 |
+
+**Last reviewed: 2026-04-18** against the sources above.
+
 This document is the authoritative shipped-rule reference for:
 
 - `Profiles/SV_PackLeader.lua`

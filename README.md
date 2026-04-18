@@ -14,12 +14,14 @@ Blizzard's built-in rotation helper gets you started, but it has gaps: wrong AoE
 
 TrueShot is built for Hunters first. Hunter is the class that should deliver clear practical value today, and all three specs are the standard the addon should be judged against.
 
+All six Hunter profiles are source-cited against Azortharion's current Midnight Season 1 rotation guides on Icy Veins (BM 2026-04-10, MM 2026-04-09, SV 2026-03-27), cross-checked against the SimC `midnight` branch default APL and the Wowhead Midnight rotation guides. Every rotational rule carries an `[src §<section> #N]` tag pointing at the priority step it implements; utility blacklists (pet / counter-shot / harpoon) are grouped without per-rule tags. The full source table per spec lives in [BM](docs/BM_ROTATION_REFERENCE.md) / [MM](docs/MM_ROTATION_REFERENCE.md) / [SV](docs/SV_ROTATION_REFERENCE.md) rotation references.
+
 The current release-readiness baseline for Hunter lives in [Hunter Validation Matrix](docs/HUNTER_VALIDATION_MATRIX.md). That document separates static confidence from the remaining live combat checks still needed for a clean `1.0` claim.
 
 | Spec | Hero Path | Key Overrides |
 |------|-----------|---------------|
 | **Beast Mastery** | Dark Ranger | Black Arrow during Withering Fire, Wailing Arrow sequencing, AoE hint for Wild Thrash |
-| **Beast Mastery** | Pack Leader | Nature's Ally KC weaving, Wild Thrash AoE hint, Bestial Wrath timing |
+| **Beast Mastery** | Pack Leader | Stampede pin (first KC after Bestial Wrath), Nature's Ally KC weaving, Wild Thrash AoE hint |
 | **Marksmanship** | Dark Ranger | Trueshot opener sequence, Volley/Trueshot anti-overlap, Withering Fire BA priority |
 | **Marksmanship** | Sentinel | Post-Rapid Fire Trueshot gating, Volley anti-overlap, Moonlight Chakram filler timing |
 | **Survival** | Pack Leader | Stampede KC sequencing, Boomstick CD tracking, Takedown burst window, Flamefang timing |

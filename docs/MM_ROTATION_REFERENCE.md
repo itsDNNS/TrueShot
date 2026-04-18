@@ -1,5 +1,16 @@
 # MM Rotation Reference
 
+## Sources
+
+| Tier | Source | URL | Stamp |
+| --- | --- | --- | --- |
+| primary | Azortharion - Icy Veins MM Hunter Rotation | https://www.icy-veins.com/wow/marksmanship-hunter-pve-dps-rotation-cooldowns-abilities | Guide 2026-04-09 / Patch 12.0.4 |
+| cross-check | SimC midnight branch | https://github.com/simulationcraft/simc/tree/midnight/ActionPriorityLists/default `hunter_marksmanship.simc` | Midnight default APL |
+| cross-check | Wowhead MM Rotation | https://www.wowhead.com/guide/classes/hunter/marksmanship/rotation-cooldowns-pve-dps | Patch 12.0.1, updated 2026-04-15 |
+| spec fact | Wowhead Sentinel Hero | https://www.wowhead.com/guide/classes/hunter/marksmanship/hero-talents | Sentinel: Moonlight Chakram replaces the Trueshot button while Trueshot is active |
+
+**Last reviewed: 2026-04-18** against the sources above.
+
 This document is the authoritative shipped-rule reference for:
 
 - `Profiles/MM_DarkRanger.lua`

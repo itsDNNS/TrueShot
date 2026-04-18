@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.24.0 - 2026-04-18
+
+### Added
+- **BM Pack Leader Stampede rule**: First `Kill Command` after `Bestial Wrath` is now pinned as `reason = "Stampede"`. The flag arms on `Bestial Wrath` cast, clears on the next `Kill Command`, and resets on combat end. Sourced to Azortharion, Icy Veins BM Hunter Rotation, guide updated 2026-04-10: "Activate Bestial Wrath. Once activated, your next Kill Command will spawn a Stampede."
+- **Hunter profile source citations**: Every Hunter profile file (BM DR, BM PL, MM DR, MM Sentinel, SV PL, SV Sentinel) now carries a structured header block with primary source URL, guide-update date, verified-on date, patch, and cross-check references (SimC midnight branch + Wowhead). Rotational rules carry inline `[src §<section> #N]` tags pointing at the priority step they implement; utility blacklists (pet / counter-shot / harpoon) are grouped without per-rule tags.
+- **Hunter logic test suite** (`tests/test_hunter_profiles.lua`): 30 scenario tests covering cast-event state machines and `EvalCondition` behavior for all six Hunter profiles, including the new Stampede arming/consumption path, the Nature's Ally anti-repeat guarantee, and a structural-ordering guard that the Stampede PIN precedes the KC Proc PIN in the rules array (first-match-wins in `Engine:ComputeQueue`).
+
+### Changed
+- **BM/MM/SV rotation reference docs**: Each now carries an explicit `Sources` table with tier (primary / cross-check / supplementary), URL, and stamp (guide-update date + patch). `Last reviewed: 2026-04-18` is recorded at the top of each doc.
+- **HUNTER_VALIDATION_MATRIX.md**: Expanded with a "Non-Hunter Isolation" section that documents the mechanical guarantee (specID routing in `Engine:ActivateProfile`) that foundation profiles cannot affect Hunter loading. BM Pack Leader validation now lists the Stampede PIN as a new live-check item.
+
 ## v0.23.7 - 2026-04-15
 
 ### Changed
