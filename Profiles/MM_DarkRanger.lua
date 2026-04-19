@@ -143,21 +143,28 @@ local Profile = {
             },
         },
 
-        -- [src §Sequencing "Rapid Fire into Trueshot"] "Ideal setup follows
-        -- pattern: Rapid Fire -> Trueshot -> Aimed Shot." Pair the RF-recency
-        -- signal with the legal ac_suggested readiness gate for TS.
+        -- [src §ST #2 / issue #89] Trueshot is the MM major cooldown and the
+        -- guide's "main cooldown" priority. Surface it whenever AC treats the
+        -- spell as castable and we are in combat. The anti-overlap BLACKLIST
+        -- above already handles the Volley -> Trueshot Double Tap case; the
+        -- trueshot_just_cast BLACKLIST on Volley handles the reverse order,
+        -- so after a pinned Trueshot the queue naturally spends one filler
+        -- GCD before showing Volley again, matching the guide's
+        -- "one cast between Volley and Trueshot" rule.
+        --
+        -- The prior gate on rapid_fire_recent(3) was removed: it treated the
+        -- Azortharion "Rapid Fire -> Trueshot -> Aimed Shot" sequence as a
+        -- hard precondition, but RF (~20s CD) and Trueshot (~2-3min CD) do
+        -- not synchronise in practice, so the PIN never fired for players
+        -- who opened without Rapid Fire. Reported as issue #89.
         {
             type = "PIN",
             spellID = SPELLS.Trueshot,
-            reason = "Post-RF Window",
+            reason = "Trueshot",
             condition = {
                 type = "and",
                 left  = { type = "ac_suggested", spellID = SPELLS.Trueshot },
-                right = {
-                    type = "and",
-                    left  = { type = "rapid_fire_recent", seconds = 3 },
-                    right = { type = "not", inner = { type = "volley_recent", seconds = 2 } },
-                },
+                right = { type = "in_combat" },
             },
         },
 

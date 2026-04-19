@@ -58,7 +58,7 @@ Dark Ranger adds the clearest override value in two places:
 | Black Arrow immediately after Trueshot | `PIN` | `ba_ready AND trueshot_just_cast(2)` | Spend the free opener proc cleanly. |
 | Wailing Arrow inside Trueshot opener | `PIN` | `wa_available AND NOT ba_ready AND trueshot_active` | Preserve the intended `TS -> BA -> WA -> BA` flow. |
 | Black Arrow during Withering Fire | `PIN` | `ba_ready AND in_withering_fire` | Highest-value BA window in the Dark Ranger lane. |
-| Trueshot only after Rapid Fire and not after Volley | `PIN` | `ac_suggested(Trueshot) AND rapid_fire_recent(3) AND NOT volley_recent(2)` | Conservative post-RF gating without raw `IsSpellUsable()` dependence. |
+| Trueshot on the main cooldown | `PIN` | `ac_suggested(Trueshot) AND in_combat` | Surface Trueshot whenever Assisted Combat treats it as castable; the anti-overlap BLACKLIST rules still force a single interleaving GCD around Volley. Replaces a prior `rapid_fire_recent(3)` gate that treated the "Rapid Fire -> Trueshot -> Aimed Shot" guidance as a hard precondition and caused Trueshot to never surface for openers that did not begin with Rapid Fire (issue #89). |
 | Black Arrow outside Withering Fire | `PREFER` | `ba_ready AND NOT in_withering_fire` | Soft nudge only, not a full hard-override outside burst. |
 
 ### Legal signal basis
@@ -96,7 +96,7 @@ Its override layer is mainly about:
 | --- | --- | --- | --- |
 | Trueshot right after Volley blocked | `BLACKLIST_CONDITIONAL` | `volley_recent(2)` | Avoid overlap waste. |
 | Volley right after Trueshot blocked | `BLACKLIST_CONDITIONAL` | `trueshot_just_cast(2)` | Same anti-overlap in the other direction. |
-| Trueshot post-RF only | `PIN` | `ac_suggested(Trueshot) AND rapid_fire_recent(3) AND NOT volley_recent(2)` | Use Blizzard AC as the legal readiness gate, then tighten timing. |
+| Trueshot on the main cooldown | `PIN` | `ac_suggested(Trueshot) AND in_combat` | Sentinel surfaces Trueshot whenever Assisted Combat treats it as castable. Azortharion lists Volley as ST #1 for Sentinel; when both are simultaneously ready the PIN now surfaces Trueshot first and the anti-overlap BLACKLIST on Volley forces at least one intervening cast in typical play before Volley is shown again, which stays within the guide's anti-back-to-back rule. Replaces a prior `rapid_fire_recent(3)` gate that caused Trueshot to never surface for openers that did not start with Rapid Fire (issue #89). |
 | Moonlight Chakram outside Trueshot blocked | `BLACKLIST_CONDITIONAL` | `NOT trueshot_active` | Keep Chakram from surfacing in the wrong context. |
 | Moonlight Chakram as late Trueshot filler | `PREFER` | `ac_suggested(MoonlightChakram) AND trueshot_active AND NOT aimed_shot_ready` | Only elevate it when the safer filler window is present. |
 

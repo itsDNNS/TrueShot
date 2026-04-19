@@ -455,6 +455,180 @@ test("MM Sentinel: aimed_shot_ready reads non-secret charges", function()
 end)
 
 ------------------------------------------------------------------------
+-- Issue #89: Trueshot must surface even when Rapid Fire was not recent.
+--
+-- The prior PIN gated Trueshot on rapid_fire_recent(3), so a user who
+-- opened without Rapid Fire never saw Trueshot in the queue. The fix
+-- keeps the anti-overlap BLACKLIST_CONDITIONAL and the BLACKLIST on
+-- Volley-after-Trueshot intact, but removes the RF-recency requirement
+-- from the PIN condition. These tests lock down the post-fix shape for
+-- both MM profiles and guard against the regression re-appearing.
+------------------------------------------------------------------------
+
+-- Small helper: scan a profile's rules array and return the first PIN
+-- whose spellID matches. We use table inspection rather than a live
+-- Engine:ComputeQueue call because the structural rule shape is exactly
+-- what the regression guard is about.
+local function find_pin_rule(profile, spellID)
+    for _, rule in ipairs(profile.rules) do
+        if rule.type == "PIN" and rule.spellID == spellID then
+            return rule
+        end
+    end
+    return nil
+end
+
+local function eval_profile_or_engine(profile, cond)
+    local result = profile:EvalCondition(cond)
+    if result ~= nil then return result end
+    return TrueShot.Engine:EvalCondition(cond)
+end
+
+local function pin_condition_matches(profile, rule)
+    return eval_profile_or_engine(profile, rule.condition)
+end
+
+test("issue #89: MM DR Trueshot PIN does NOT depend on rapid_fire_recent", function()
+    local p = P("Hunter.MM.DarkRanger")
+    -- Simulate: AC suggests Trueshot, we are in combat, RF was never cast.
+    TrueShot.Engine._acSuggestedSpells = TrueShot.Engine._acSuggestedSpells or {}
+    local rule = find_pin_rule(p, 288613)
+    assert_true(rule ~= nil, "MM DR must expose a Trueshot PIN rule")
+    assert_true(rule.condition ~= nil, "Trueshot PIN must have a condition table")
+    -- Walk the condition tree and assert rapid_fire_recent is absent.
+    local function walk(c)
+        if not c then return false end
+        if c.type == "rapid_fire_recent" then return true end
+        if c.left and walk(c.left) then return true end
+        if c.right and walk(c.right) then return true end
+        if c.inner and walk(c.inner) then return true end
+        return false
+    end
+    assert_false(walk(rule.condition),
+        "MM DR Trueshot PIN must not gate on rapid_fire_recent (issue #89)")
+end)
+
+test("issue #89: MM Sentinel Trueshot PIN does NOT depend on rapid_fire_recent", function()
+    local p = P("Hunter.MM.Sentinel")
+    local rule = find_pin_rule(p, 288613)
+    assert_true(rule ~= nil, "MM Sentinel must expose a Trueshot PIN rule")
+    local function walk(c)
+        if not c then return false end
+        if c.type == "rapid_fire_recent" then return true end
+        if c.left and walk(c.left) then return true end
+        if c.right and walk(c.right) then return true end
+        if c.inner and walk(c.inner) then return true end
+        return false
+    end
+    assert_false(walk(rule.condition),
+        "MM Sentinel Trueshot PIN must not gate on rapid_fire_recent (issue #89)")
+end)
+
+-- Dynamic condition test: stub ac_suggested via the engine and confirm the
+-- Trueshot PIN now evaluates true without any Rapid Fire cast. The stub is
+-- restored after each test so subsequent tests see the real method.
+local _original_IsSpellSuggestedByAC = TrueShot.Engine.IsSpellSuggestedByAC
+
+local function force_ac_suggested(spellID, on)
+    -- Engine:IsSpellSuggestedByAC calls RefreshACSuggestions which wipes the
+    -- cache on every call. We monkey-patch it in tests to freeze our value.
+    TrueShot.Engine.IsSpellSuggestedByAC = function(_, id)
+        return id == spellID and on or false
+    end
+end
+
+local function restore_ac_suggested()
+    TrueShot.Engine.IsSpellSuggestedByAC = _original_IsSpellSuggestedByAC
+end
+
+test("issue #89: MM DR Trueshot PIN fires when AC suggests TS and no RF cast yet", function()
+    local p = P("Hunter.MM.DarkRanger")
+    force_ac_suggested(288613, true)
+    local rule = find_pin_rule(p, 288613)
+    local ok = pin_condition_matches(p, rule)
+    restore_ac_suggested()
+    assert_true(ok,
+        "Trueshot PIN must evaluate true when AC suggests TS and we are in combat, " ..
+        "regardless of Rapid Fire history")
+end)
+
+test("issue #89: MM Sentinel Trueshot PIN fires when AC suggests TS and no RF cast yet", function()
+    local p = P("Hunter.MM.Sentinel")
+    force_ac_suggested(288613, true)
+    local rule = find_pin_rule(p, 288613)
+    local ok = pin_condition_matches(p, rule)
+    restore_ac_suggested()
+    assert_true(ok,
+        "Sentinel Trueshot PIN must evaluate true when AC suggests TS and we are in combat")
+end)
+
+test("issue #89 regression guard: MM DR Volley anti-overlap BLACKLIST still exists", function()
+    -- If the fix accidentally drops the Volley->Trueshot anti-overlap the
+    -- "Never cast Volley and Trueshot back-to-back" rule from Azortharion is
+    -- violated. Confirm the BLACKLIST_CONDITIONAL on spell 288613 with a
+    -- volley_recent condition is still present.
+    local p = P("Hunter.MM.DarkRanger")
+    local found_anti_overlap = false
+    for _, rule in ipairs(p.rules) do
+        if rule.type == "BLACKLIST_CONDITIONAL"
+            and rule.spellID == 288613
+            and rule.condition and rule.condition.type == "volley_recent" then
+            found_anti_overlap = true
+        end
+    end
+    assert_true(found_anti_overlap,
+        "MM DR must keep BLACKLIST_CONDITIONAL Trueshot on volley_recent (anti-overlap)")
+end)
+
+test("issue #89 regression guard: MM Sentinel Volley anti-overlap BLACKLIST still exists", function()
+    local p = P("Hunter.MM.Sentinel")
+    local found_anti_overlap = false
+    for _, rule in ipairs(p.rules) do
+        if rule.type == "BLACKLIST_CONDITIONAL"
+            and rule.spellID == 288613
+            and rule.condition and rule.condition.type == "volley_recent" then
+            found_anti_overlap = true
+        end
+    end
+    assert_true(found_anti_overlap,
+        "MM Sentinel must keep BLACKLIST_CONDITIONAL Trueshot on volley_recent (anti-overlap)")
+end)
+
+test("issue #89 regression guard: MM DR Volley-after-Trueshot BLACKLIST still exists", function()
+    -- The reverse anti-overlap ensures that after we PIN Trueshot, Volley is
+    -- suppressed for 2 seconds so the rotation naturally interleaves one GCD
+    -- before Volley comes back. This is load-bearing for the Sentinel
+    -- Azortharion priority trade-off documented in the MM_Sentinel source
+    -- comment: with Trueshot pinned first, Volley must be blocked for one
+    -- GCD to reproduce "one cast between Volley and Trueshot".
+    local p = P("Hunter.MM.DarkRanger")
+    local found = false
+    for _, rule in ipairs(p.rules) do
+        if rule.type == "BLACKLIST_CONDITIONAL"
+            and rule.spellID == 260243 -- Volley
+            and rule.condition and rule.condition.type == "trueshot_just_cast" then
+            found = true
+        end
+    end
+    assert_true(found,
+        "MM DR must keep BLACKLIST_CONDITIONAL Volley on trueshot_just_cast")
+end)
+
+test("issue #89 regression guard: MM Sentinel Volley-after-Trueshot BLACKLIST still exists", function()
+    local p = P("Hunter.MM.Sentinel")
+    local found = false
+    for _, rule in ipairs(p.rules) do
+        if rule.type == "BLACKLIST_CONDITIONAL"
+            and rule.spellID == 260243
+            and rule.condition and rule.condition.type == "trueshot_just_cast" then
+            found = true
+        end
+    end
+    assert_true(found,
+        "MM Sentinel must keep BLACKLIST_CONDITIONAL Volley on trueshot_just_cast")
+end)
+
+------------------------------------------------------------------------
 -- SV Pack Leader
 ------------------------------------------------------------------------
 

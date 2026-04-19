@@ -103,21 +103,38 @@ local Profile = {
             condition = { type = "trueshot_just_cast", seconds = 2 },
         },
 
-        -- [src §Sequencing "Rapid Fire into Trueshot"] "Ideal setup follows
-        -- pattern: Rapid Fire -> Trueshot -> Aimed Shot." Pair the RF-recency
-        -- signal with the legal ac_suggested readiness gate for TS.
+        -- [src §ST #2 / issue #89] Trueshot is MM's main cooldown. Surface it
+        -- whenever AC treats it as castable and we are in combat. The anti-
+        -- overlap BLACKLIST above handles Volley -> Trueshot, and the
+        -- trueshot_just_cast BLACKLIST on Volley handles the reverse, so
+        -- after a pinned Trueshot the queue naturally spends one filler GCD
+        -- before surfacing Volley again, matching the guide's "one cast
+        -- between Volley and Trueshot" rule.
+        --
+        -- The prior gate on rapid_fire_recent(3) was removed: it treated the
+        -- Azortharion "Rapid Fire -> Trueshot -> Aimed Shot" sequence as a
+        -- hard precondition for pinning Trueshot, but RF (~20s CD) and
+        -- Trueshot (~2-3min CD) do not synchronise in practice, so the PIN
+        -- never fired for players who opened without Rapid Fire. Reported as
+        -- issue #89.
+        --
+        -- Sentinel-specific trade-off: Azortharion lists Volley as ST #1 and
+        -- Trueshot as #2. When both are simultaneously ready the PIN now
+        -- surfaces Trueshot first; the anti-overlap BLACKLIST on Volley
+        -- (triggered by trueshot_just_cast) then forces at least one
+        -- intervening cast in typical play before Volley is shown again.
+        -- This trade is accepted because the prior behaviour (Trueshot
+        -- never surfaced at all) was strictly worse for the user reporting
+        -- issue #89, and the sequence still satisfies the guide's
+        -- "never back-to-back" Volley/Trueshot rule.
         {
             type = "PIN",
             spellID = SPELLS.Trueshot,
-            reason = "Post-RF Window",
+            reason = "Trueshot",
             condition = {
                 type = "and",
                 left  = { type = "ac_suggested", spellID = SPELLS.Trueshot },
-                right = {
-                    type = "and",
-                    left  = { type = "rapid_fire_recent", seconds = 3 },
-                    right = { type = "not", inner = { type = "volley_recent", seconds = 2 } },
-                },
+                right = { type = "in_combat" },
             },
         },
 

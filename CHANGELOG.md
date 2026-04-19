@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.25.1 - 2026-04-19
+
+### Fixed
+- **MM Trueshot no longer hidden from the queue when the opener did not start with Rapid Fire** (reported as [#89](https://github.com/itsDNNS/TrueShot/issues/89)). Both MM Dark Ranger and MM Sentinel profiles had a PIN rule that gated Trueshot on `rapid_fire_recent(3)`, which treated the Azortharion "Rapid Fire -> Trueshot -> Aimed Shot" sequence guidance as a hard precondition. Rapid Fire (~20s CD) and Trueshot (~2-3min CD) do not synchronise in practice, so the PIN never fired for players whose opener did not begin with a Rapid Fire, and Trueshot never surfaced in the queue. The PIN now triggers on `ac_suggested(Trueshot)` plus `in_combat`, so Trueshot is shown whenever Assisted Combat treats it as castable. The existing anti-overlap rules remain untouched (BLACKLIST_CONDITIONAL Trueshot on `volley_recent`, BLACKLIST_CONDITIONAL Volley on `trueshot_just_cast`), so the guide's "never back-to-back" Volley/Trueshot rule is still enforced. Sentinel trade-off: when Volley and Trueshot are simultaneously ready the queue now surfaces Trueshot first and the anti-overlap BLACKLIST on Volley then forces at least one intervening cast in typical play before Volley is shown again.
+- **Tests**: 8 new regression guards in `tests/test_hunter_profiles.lua` pin the post-fix rule shape for both MM profiles, including structural assertions that the Trueshot PIN condition does not walk into any `rapid_fire_recent` node, that the PIN fires under an AC-suggested Trueshot with no Rapid Fire history, and that both BLACKLIST anti-overlap rules stay in place. Full test suite now reports 41 Hunter + 21 CD ledger + 12 condition registry + 8 base64 = 82 passing.
+
 ## v0.25.0 - 2026-04-18
 
 ### Added
