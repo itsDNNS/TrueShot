@@ -45,21 +45,22 @@ Therefore the target model is not "score everything". It is:
 
 ## Decision Pipeline
 
-Every queue recompute should resolve in this order:
+This pipeline applies only when Strict Compliance is disabled. Every
+experimental queue recompute should resolve in this order:
 
 1. Build candidate set
 2. Apply hard gates
 3. Evaluate priority buckets
 4. Pick the highest-score candidate within the winning bucket
-5. Fall back to Blizzard Assisted Combat if no local bucket wins
-6. Fill remaining queue positions from Blizzard rotation suggestions
+5. Use Blizzard's readable current recommendation if no local bucket wins
+6. Behind a valid primary, show rotation-catalog entries as context only
 
 ### 1. Candidate Set
 
 Candidates may come from:
 
 - Blizzard primary recommendation
-- Blizzard rotation list
+- Blizzard rotation catalog (membership context, not ordered future actions)
 - profile rotational spell list
 - profile-declared local candidates
 
@@ -310,7 +311,7 @@ Current local environment:
 ## Migration Rules
 
 1. Do not switch the whole addon at once.
-2. Keep Blizzard Assisted Combat as fallback.
+2. Keep Blizzard's current `GetNextCastSpell()` recommendation as the direct AC primary; never substitute the rotation catalog for it.
 3. Migrate one profile first.
 4. Add tests before widening profile coverage.
 5. Keep profile logic explainable.

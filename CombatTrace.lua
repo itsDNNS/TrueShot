@@ -32,6 +32,9 @@ for i = 1, RING_SIZE do
         displayedSpellID = 0,
         displayedSource = "ac",
         displayedReason = nil,
+        displayedReasonCode = nil,
+        rawACStatus = nil,
+        strictState = nil,
         classification = "unscored",
         gapDuration = nil,
     }
@@ -62,7 +65,7 @@ local recentResult = {}
 -- Classification
 ------------------------------------------------------------------------
 
-local function ClassifyCast(castSpellID, displayedSpellID, displayedQueue, profile)
+local function ClassifyCast(castSpellID, displayedSpellID, displayedQueue, profile, decisionMeta)
     if profile and profile.rotationalSpells then
         if not profile.rotationalSpells[castSpellID] then
             return "unscored"
@@ -73,7 +76,9 @@ local function ClassifyCast(castSpellID, displayedSpellID, displayedQueue, profi
         return "match"
     end
 
-    if displayedQueue then
+    -- Rotation-catalog icons are context, not predicted or recommended future
+    -- casts, so they do not earn a soft match.
+    if displayedQueue and (not decisionMeta or decisionMeta.rotationCatalogRole ~= "context_only") then
         for i = 2, #displayedQueue do
             if displayedQueue[i] == castSpellID then
                 return "soft_match"
@@ -88,7 +93,7 @@ end
 -- Internal: write one event to the ring and update counters
 ------------------------------------------------------------------------
 
-local function WriteEvent(t, castSpellID, displayedSpellID, displayedSource, displayedReason, classification, gapDuration)
+local function WriteEvent(t, castSpellID, displayedSpellID, displayedSource, displayedReason, classification, gapDuration, decisionMeta)
     ringHead = (ringHead % RING_SIZE) + 1
     if ringCount < RING_SIZE then
         ringCount = ringCount + 1
@@ -101,6 +106,9 @@ local function WriteEvent(t, castSpellID, displayedSpellID, displayedSource, dis
     slot.displayedSpellID = displayedSpellID
     slot.displayedSource = displayedSource
     slot.displayedReason = displayedReason
+    slot.displayedReasonCode = decisionMeta and decisionMeta.reasonCode or nil
+    slot.rawACStatus = decisionMeta and decisionMeta.rawACStatus or nil
+    slot.strictState = decisionMeta and decisionMeta.strictState == true or false
     slot.classification = classification
     slot.gapDuration = gapDuration
 
@@ -136,7 +144,7 @@ function CombatTrace:Reset()
     summary.totalGapTime = 0
 end
 
-function CombatTrace:RecordCast(castSpellID, displayedSpellID, displayedSource, displayedReason, displayedQueue)
+function CombatTrace:RecordCast(castSpellID, displayedSpellID, displayedSource, displayedReason, displayedQueue, decisionMeta)
     local now = GetTime()
     local profile = TrueShot.Engine and TrueShot.Engine.activeProfile
 
@@ -151,13 +159,14 @@ function CombatTrace:RecordCast(castSpellID, displayedSpellID, displayedSource, 
                 displayedSource or "ac",
                 nil,
                 "gap",
-                idleTime - DEFAULT_GCD
+                idleTime - DEFAULT_GCD,
+                decisionMeta
             )
         end
     end
 
     -- Record the actual cast
-    local classification = ClassifyCast(castSpellID, displayedSpellID, displayedQueue, profile)
+    local classification = ClassifyCast(castSpellID, displayedSpellID, displayedQueue, profile, decisionMeta)
     WriteEvent(
         now,
         castSpellID,
@@ -165,7 +174,8 @@ function CombatTrace:RecordCast(castSpellID, displayedSpellID, displayedSource, 
         displayedSource or "ac",
         displayedReason,
         classification,
-        nil
+        nil,
+        decisionMeta
     )
 
     lastCastTime = now

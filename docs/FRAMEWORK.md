@@ -18,7 +18,7 @@ Current project direction:
 
 The engine owns:
 
-- base queue acquisition from `C_AssistedCombat`
+- current-primary and rotation-catalog acquisition from `C_AssistedCombat`
 - event registration
 - local state tracking
 - rule evaluation
@@ -89,12 +89,18 @@ Presentation must not own combat logic.
 
 Every frame update should conceptually resolve in this order:
 
-1. Get Blizzard base recommendation
-2. Build dynamic blockers for the current frame
-3. Apply `PIN` rules
-4. Apply `PREFER` rules
-5. Fall back to Blizzard recommendation
-6. Fill remaining queue from Blizzard rotation list
+Strict mode resolves in this order:
+
+1. Read Blizzard's current recommendation from `GetNextCastSpell()`.
+2. Keep a readable, non-secret result unchanged in Slot 1.
+3. If no valid current recommendation exists, keep the queue empty.
+4. Only behind a valid Slot 1, show `GetRotationSpells()` entries as catalog context; their order is not a future-cast prediction.
+
+Experimental mode may apply profile gates and `PIN` / `PREFER` overrides before
+rendering, but every substitution must retain its non-AC source metadata. If
+the raw primary is blacklisted or locally uncastable, Slot 1 may remain empty;
+rotation-catalog entries neither replace it nor qualify as `soft_match` in
+either mode.
 
 ## Rule Classes
 
@@ -146,7 +152,7 @@ What the addon chooses to show.
 
 Example:
 
-- queue of top 2 icons
+- current recommendation plus optional rotation-catalog context icon
 - interrupt pin
 - GCD sweep
 

@@ -156,7 +156,7 @@ Some conditions are owned by the `State/` layer rather than by individual profil
 
 | Condition | Owner | Meaning |
 | --- | --- | --- |
-| `ac_suggested(spellID)` | `Engine` | Assisted Combat currently surfaces this spell in its primary or rotation suggestions. |
+| `ac_suggested(spellID)` | `Engine` | Experimental membership signal: the spell is either the current AC primary or present in the rotation catalog. Catalog presence is context only, not readiness or a future-cast prediction. |
 | `spell_charges(spellID, op, value)` | `Engine` | Charge-count read through `C_Spell.GetSpellCharges` (validated non-secret). |
 | `spell_glowing(spellID)` | `Engine` | Blizzard's proc-glow overlay is active on this spell. |
 | `target_count(op, value)` | `Engine` | Hostile nameplate count via `C_NamePlate.GetNamePlates`. |

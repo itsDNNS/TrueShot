@@ -5,38 +5,53 @@ TrueShot = TrueShot or {}
 TrueShot.Engine = {}
 
 local Engine = TrueShot.Engine
+local IsStrictMode
 
 Engine.burstModeActive = false
 Engine.combatStartTime = nil
 Engine.activeProfile = nil
 Engine.lastQueueMeta = {
-    source = "ac",
+    source = "none",
     reason = nil,
     bucket = nil,
     score = nil,
     scoreBreakdown = nil,
     phase = nil,
     aoeHintSpell = nil,
-    reasonCode = "AC_PRIMARY",
+    reasonCode = "NO_AC_PRIMARY",
+    rawACSpell = nil,
+    rawACStatus = "unavailable",
+    finalPrimarySpell = nil,
+    fallbackDropReason = "assisted_combat_unavailable",
+    strictState = true,
+    rotationCatalogSnapshot = {},
+    rotationCatalogRole = "context_only",
 }
 
 function Engine:ResetQueueMeta()
     local meta = self.lastQueueMeta
-    meta.source = "ac"
+    meta.source = "none"
     meta.reason = nil
     meta.bucket = nil
     meta.score = nil
     meta.scoreBreakdown = nil
     meta.phase = nil
     meta.aoeHintSpell = nil
-    meta.reasonCode = "AC_PRIMARY"
+    meta.reasonCode = "NO_AC_PRIMARY"
+    meta.rawACSpell = nil
+    meta.rawACStatus = "unavailable"
+    meta.finalPrimarySpell = nil
+    meta.fallbackDropReason = "assisted_combat_unavailable"
+    meta.strictState = IsStrictMode() == true
+    wipe(meta.rotationCatalogSnapshot)
+    meta.rotationCatalogRole = "context_only"
 end
 
 local function IsSecret(val)
     return issecretvalue and issecretvalue(val) or false
 end
 
-local function IsStrictMode()
+IsStrictMode = function()
     return TrueShot.SignalRegistry and TrueShot.SignalRegistry:IsStrictMode()
 end
 
@@ -144,8 +159,25 @@ end
 local _acSuggestionTick = -1
 local _acPrimarySpell = nil
 local _acSuggestedSpells = {}
+local _acRotationCatalog = {}
+local _acRawStatus = "unavailable"
 
 local _acSuggestionTime = 0
+
+local function GetCatalogSpellID(entry)
+    if IsSecret(entry) then return nil end
+    if type(entry) == "number" then return entry end
+    if type(entry) ~= "table" then return nil end
+
+    local spellID = entry.spellID
+    if IsSecret(spellID) then return nil end
+    if spellID == nil then
+        spellID = entry[1]
+        if IsSecret(spellID) then return nil end
+    end
+    if type(spellID) ~= "number" then return nil end
+    return spellID
+end
 
 local function RefreshACSuggestions()
     local now = GetTime()
@@ -155,29 +187,56 @@ local function RefreshACSuggestions()
     _acSuggestionTick = _computeTick
     _acSuggestionTime = now
     _acPrimarySpell = nil
+    _acRawStatus = "unavailable"
     wipe(_acSuggestedSpells)
+    wipe(_acRotationCatalog)
 
-    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
+    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable then
         return
     end
 
-    local baseSpell = C_AssistedCombat.GetNextCastSpell()
-    if baseSpell and not IsSecret(baseSpell) then
+    local okAvailable, available = pcall(C_AssistedCombat.IsAvailable)
+    if not okAvailable then
+        _acRawStatus = "error"
+        return
+    end
+    if IsSecret(available) then
+        return
+    end
+    if available ~= true then
+        return
+    end
+    if not C_AssistedCombat.GetNextCastSpell then
+        return
+    end
+
+    local okPrimary, baseSpell = pcall(C_AssistedCombat.GetNextCastSpell)
+    if not okPrimary then
+        _acRawStatus = "error"
+    elseif IsSecret(baseSpell) then
+        _acRawStatus = "secret"
+    elseif baseSpell == nil then
+        _acRawStatus = "nil"
+    elseif type(baseSpell) == "number" then
+        _acRawStatus = "available"
         _acPrimarySpell = baseSpell
         _acSuggestedSpells[baseSpell] = true
+    else
+        _acRawStatus = "invalid"
     end
 
-    local rotSpells = C_AssistedCombat.GetRotationSpells()
-    if not rotSpells or IsSecret(rotSpells) then
+    if not C_AssistedCombat.GetRotationSpells then
         return
     end
 
+    local okRotation, rotSpells = pcall(C_AssistedCombat.GetRotationSpells)
+    if not okRotation or IsSecret(rotSpells) then return end
+    if rotSpells == nil or type(rotSpells) ~= "table" then return end
+
     for _, entry in ipairs(rotSpells) do
-        local spellID = entry
-        if type(entry) == "table" then
-            spellID = entry.spellID or entry[1]
-        end
-        if spellID and not IsSecret(spellID) then
+        local spellID = GetCatalogSpellID(entry)
+        if spellID then
+            _acRotationCatalog[#_acRotationCatalog + 1] = spellID
             _acSuggestedSpells[spellID] = true
         end
     end
@@ -247,9 +306,10 @@ function Engine:EvalCondition(cond)
     elseif cond.type == "spell_charges" then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, cond.spellID)
-            if ok and info then
+            if ok and not IsSecret(info) and info ~= nil and type(info) == "table" then
                 local charges = info.currentCharges
                 if IsSecret(charges) then return false end
+                if type(charges) ~= "number" then return false end
                 if cond.op == ">=" then return charges >= cond.value end
                 if cond.op == ">"  then return charges >  cond.value end
                 if cond.op == "==" then return charges == cond.value end
@@ -316,9 +376,9 @@ function Engine:IsSpellCastable(spellID)
     -- while recharge timing is ticking in the background.
     if C_Spell and C_Spell.GetSpellCharges then
         local okCharges, info = pcall(C_Spell.GetSpellCharges, spellID)
-        if okCharges and info and not IsSecret(info) then
+        if okCharges and not IsSecret(info) and info ~= nil then
             local charges = info.currentCharges
-            if type(charges) == "number" and not IsSecret(charges) then
+            if not IsSecret(charges) and type(charges) == "number" then
                 if charges <= 0 then
                     return false
                 end
@@ -332,15 +392,19 @@ function Engine:IsSpellCastable(spellID)
     -- Kill Command sitting in slot 1 while still cooling down.
     if C_Spell and C_Spell.GetSpellCooldown then
         local okCd, cooldown = pcall(C_Spell.GetSpellCooldown, spellID)
-        if okCd and type(cooldown) == "table" then
-            local startTime = cooldown.startTime or 0
-            local duration = cooldown.duration or 0
-            local modRate = cooldown.modRate or 1
-            if not IsSecret(startTime) and not IsSecret(duration) and not IsSecret(modRate)
-                and type(startTime) == "number" and type(duration) == "number" and type(modRate) == "number"
-                and startTime > 0 and duration > 0 and modRate > 0 then
-                if (startTime + duration) > GetTime() then
-                    return false
+        if okCd and not IsSecret(cooldown) and type(cooldown) == "table" then
+            local startTime = cooldown.startTime
+            local duration = cooldown.duration
+            local modRate = cooldown.modRate
+            if not IsSecret(startTime) and not IsSecret(duration) and not IsSecret(modRate) then
+                if startTime == nil then startTime = 0 end
+                if duration == nil then duration = 0 end
+                if modRate == nil then modRate = 1 end
+                if type(startTime) == "number" and type(duration) == "number" and type(modRate) == "number"
+                    and startTime > 0 and duration > 0 and modRate > 0 then
+                    if (startTime + duration) > GetTime() then
+                        return false
+                    end
                 end
             end
         end
@@ -379,6 +443,113 @@ local _condBlacklist = {}
 local _seen = {}
 local _hybridCandidates = {}
 local _aoeCondition = { type = "target_count", op = ">=", value = 3 }
+
+local DECISION_HISTORY_SIZE = 40
+local _decisionHistory = {}
+local _decisionHistoryHead = 0
+local _decisionHistoryCount = 0
+local _lastDecisionSignature = nil
+
+local function CopySafeSpellArray(destination, source)
+    wipe(destination)
+    for _, spellID in ipairs(source or {}) do
+        if not IsSecret(spellID) and type(spellID) == "number" then
+            destination[#destination + 1] = spellID
+        end
+    end
+end
+
+local function DiagnosticsEnabled()
+    return TrueShot.DiagnosticsEnabled and TrueShot.DiagnosticsEnabled() == true
+end
+
+function Engine:ClearDecisionHistory()
+    wipe(_decisionHistory)
+    _decisionHistoryHead = 0
+    _decisionHistoryCount = 0
+    _lastDecisionSignature = nil
+end
+
+function Engine:GetDecisionHistoryCount()
+    return _decisionHistoryCount
+end
+
+function Engine:GetRecentDecisions(count)
+    local result = {}
+    count = math.min(count or _decisionHistoryCount, _decisionHistoryCount)
+    for offset = count - 1, 0, -1 do
+        local index = ((_decisionHistoryHead - offset - 1) % DECISION_HISTORY_SIZE) + 1
+        result[#result + 1] = _decisionHistory[index]
+    end
+    return result
+end
+
+local function BuildDecisionSignature(meta)
+    local catalog = table.concat(meta.rotationCatalogSnapshot, ",")
+    return table.concat({
+        meta.rawACStatus or "",
+        meta.rawACSpell or 0,
+        meta.finalPrimarySpell or 0,
+        meta.source or "",
+        meta.reasonCode or "",
+        meta.fallbackDropReason or "",
+        meta.strictState and 1 or 0,
+        catalog,
+    }, "|")
+end
+
+local function CopyDisplaySnapshot()
+    local display = TrueShot.Display
+    if not display or not display.GetStabilizationSnapshot then return nil end
+    local snapshot = display:GetStabilizationSnapshot()
+    if IsSecret(snapshot) or type(snapshot) ~= "table" then return nil end
+
+    local copy = {}
+    for _, key in ipairs({ "displayedPrimary", "pendingPrimary", "pendingTicks", "pendingAge" }) do
+        local value = snapshot[key]
+        if not IsSecret(value) and (value == nil or type(value) == "number") then
+            copy[key] = value
+        end
+    end
+    local forced = snapshot.staleDeadlineForcedLastCommit
+    if not IsSecret(forced) then
+        copy.staleDeadlineForcedLastCommit = forced == true
+    end
+    return copy
+end
+
+function Engine:RecordDecisionChange()
+    if not DiagnosticsEnabled() then
+        if _decisionHistoryCount > 0 then self:ClearDecisionHistory() end
+        return
+    end
+
+    local meta = self.lastQueueMeta
+    local signature = BuildDecisionSignature(meta)
+    if signature == _lastDecisionSignature then return end
+    _lastDecisionSignature = signature
+
+    _decisionHistoryHead = (_decisionHistoryHead % DECISION_HISTORY_SIZE) + 1
+    if _decisionHistoryCount < DECISION_HISTORY_SIZE then
+        _decisionHistoryCount = _decisionHistoryCount + 1
+    end
+
+    local entry = {
+        timestamp = GetTime(),
+        rawStatus = meta.rawACStatus,
+        rawACSpell = meta.rawACSpell,
+        finalPrimarySpell = meta.finalPrimarySpell,
+        source = meta.source,
+        reason = IsSecret(meta.reason) and nil or meta.reason,
+        reasonCode = meta.reasonCode,
+        fallbackDropReason = meta.fallbackDropReason,
+        strictState = meta.strictState == true,
+        rotationCatalog = {},
+        displayStabilization = CopyDisplaySnapshot(),
+    }
+    CopySafeSpellArray(entry.rotationCatalog, meta.rotationCatalogSnapshot)
+    _decisionHistory[_decisionHistoryHead] = entry
+end
 
 local function IsBlocked(spellID)
     return blacklistedSpells[spellID] or _condBlacklist[spellID]
@@ -514,43 +685,70 @@ function Engine:ComputeQueue(iconCount)
     wipe(_queue)
     local queue = _queue
     local profile = self.activeProfile
-    if not profile then
-        self:ResetQueueMeta()
-        return queue
-    end
-
-    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
-        self:ResetQueueMeta()
-        return queue
-    end
-
     RefreshACSuggestions()
-    local baseSpell = _acPrimarySpell
-    local rotSpells = C_AssistedCombat.GetRotationSpells()
+    local strict = IsStrictMode() == true
+    local rawSpell = _acPrimarySpell
+    local baseSpell = rawSpell
+    local rotSpells = _acRotationCatalog
+    local fallbackDropReason = nil
+    iconCount = type(iconCount) == "number" and math.max(1, math.floor(iconCount)) or 1
+
+    if _acRawStatus == "nil" then
+        fallbackDropReason = "raw_ac_nil"
+    elseif _acRawStatus == "secret" then
+        fallbackDropReason = "raw_ac_secret"
+    elseif _acRawStatus == "error" then
+        fallbackDropReason = "raw_ac_error"
+    elseif _acRawStatus == "invalid" then
+        fallbackDropReason = "raw_ac_invalid"
+    elseif _acRawStatus == "unavailable" then
+        fallbackDropReason = "assisted_combat_unavailable"
+    end
+
+    if not profile and fallbackDropReason == nil then
+        fallbackDropReason = "no_active_profile"
+    end
 
     -- Build conditional blacklist for this frame
     wipe(_condBlacklist)
     local condBlacklist = _condBlacklist
-    for _, rule in ipairs(profile.rules) do
-        if rule.type == "BLACKLIST_CONDITIONAL" and self:EvalCondition(rule.condition) then
-            condBlacklist[rule.spellID] = true
+    if profile and not strict then
+        for _, rule in ipairs(profile.rules) do
+            if rule.type == "BLACKLIST_CONDITIONAL" and self:EvalCondition(rule.condition) then
+                condBlacklist[rule.spellID] = true
+            end
         end
     end
 
     -- IsBlocked uses module-level tables (blacklistedSpells + _condBlacklist)
 
-    if baseSpell and IsBlocked(baseSpell) then baseSpell = nil end
-    if baseSpell and not self:IsSpellCastable(baseSpell) then baseSpell = nil end
+    if not strict and baseSpell and IsBlocked(baseSpell) then
+        baseSpell = nil
+        fallbackDropReason = "raw_ac_blacklisted"
+    end
+    if not strict and baseSpell and not self:IsSpellCastable(baseSpell) then
+        baseSpell = nil
+        fallbackDropReason = "raw_ac_locally_uncastable"
+    end
 
     local pos1 = nil
-    local source = "ac"
+    local source = "none"
     local reason = nil
     local bucket = nil
     local score = nil
     local scoreBreakdown = nil
 
-    local hybridDecision = self:SelectHybridDecision(profile, baseSpell, rotSpells)
-    if hybridDecision then
+    local hybridDecision = nil
+    if profile and not strict then
+        hybridDecision = self:SelectHybridDecision(profile, baseSpell, rotSpells)
+    end
+    if strict then
+        if _acRawStatus == "available" then
+            pos1 = rawSpell
+            source = "ac"
+            fallbackDropReason = nil
+        end
+    elseif hybridDecision then
         pos1 = hybridDecision.spellID
         source = "hybrid"
         reason = hybridDecision.reason or hybridDecision.bucket
@@ -564,7 +762,7 @@ function Engine:ComputeQueue(iconCount)
         -- rule types exist.
         local pinnedSpell = nil
         local firedRule = nil
-        if not IsStrictMode() then
+        if profile then
             for _, rule in ipairs(profile.rules) do
                 if (rule.type == "PIN" or rule.type == "EXPERIMENTAL_PIN")
                     and self:EvalCondition(rule.condition) then
@@ -580,7 +778,7 @@ function Engine:ComputeQueue(iconCount)
         -- PREFER rules (only if no PIN fired). EXPERIMENTAL_PREFER is only
         -- reachable when strict mode is disabled.
         local preferredSpell = nil
-        if not pinnedSpell and not IsStrictMode() then
+        if profile and not pinnedSpell then
             for _, rule in ipairs(profile.rules) do
                 if (rule.type == "PREFER" or rule.type == "EXPERIMENTAL_PREFER")
                     and self:EvalCondition(rule.condition) then
@@ -597,70 +795,80 @@ function Engine:ComputeQueue(iconCount)
         if firedRule then
             source = (firedRule.type == "PIN" or firedRule.type == "EXPERIMENTAL_PIN") and "pin" or "prefer"
             reason = firedRule.reason
+        elseif pos1 then
+            source = "ac"
         end
     end
 
-    if pos1 and not IsBlocked(pos1) then
+    -- A surviving raw AC primary was not dropped, even when no profile exists.
+    if source == "ac" and pos1 == rawSpell and _acRawStatus == "available" then
+        fallbackDropReason = nil
+    end
+
+    if pos1 and (strict or not IsBlocked(pos1)) then
         queue[#queue + 1] = pos1
     end
 
     -- Phase detection: profile-specific first, then engine-level AoE
     local phase = nil
-    if not IsStrictMode() and profile.GetPhase then
+    if profile and not strict and profile.GetPhase then
         phase = profile:GetPhase()
     end
-    if not phase then
+    if profile and not strict and not phase then
         if self:EvalCondition(_aoeCondition) then phase = "AoE" end
     end
 
     -- AoE hint: profile declares a spell to show in secondary icon when AoE detected
     local aoeHintSpell = nil
-    if profile.aoeHint and self:EvalCondition(profile.aoeHint.condition) then
+    if profile and not strict and profile.aoeHint and self:EvalCondition(profile.aoeHint.condition) then
         local hintID = profile.aoeHint.spellID
         if hintID and self:IsSpellCastable(hintID) and not IsBlocked(hintID) then
             aoeHintSpell = hintID
         end
     end
 
-    self.lastQueueMeta.source = source
-    self.lastQueueMeta.reason = reason
-    self.lastQueueMeta.bucket = bucket
-    self.lastQueueMeta.score = score
-    self.lastQueueMeta.scoreBreakdown = scoreBreakdown
-    self.lastQueueMeta.phase = phase
-    self.lastQueueMeta.aoeHintSpell = aoeHintSpell
-    if source == "ac" then
-        self.lastQueueMeta.reasonCode = "AC_PRIMARY"
-    elseif source == "hybrid" then
-        self.lastQueueMeta.reasonCode = "EXPERIMENTAL_OVERRIDE"
-    else
-        self.lastQueueMeta.reasonCode = "EXPERIMENTAL_OVERRIDE"
-    end
-
-    -- Positions 2+ from GetRotationSpells()
-    if rotSpells then
+    -- Rotation catalog entries are context only and never create a primary.
+    if pos1 and #queue > 0 then
         wipe(_seen)
         local seen = _seen
-        if pos1 then seen[pos1] = true end
+        seen[pos1] = true
 
-        for _, entry in ipairs(rotSpells) do
+        for _, spellID in ipairs(rotSpells) do
             if #queue >= iconCount then break end
-
-            local spellID = entry
-            if type(entry) == "table" then
-                spellID = entry.spellID or entry[1]
-            end
-
             if spellID
                 and not seen[spellID]
-                and not IsBlocked(spellID)
-                and self:IsSpellCastable(spellID)
+                and (strict or (not IsBlocked(spellID) and self:IsSpellCastable(spellID)))
             then
                 queue[#queue + 1] = spellID
                 seen[spellID] = true
             end
         end
     end
+
+    local meta = self.lastQueueMeta
+    meta.source = source
+    meta.reason = IsSecret(reason) and nil or reason
+    meta.bucket = bucket
+    meta.score = score
+    meta.scoreBreakdown = scoreBreakdown
+    meta.phase = phase
+    meta.aoeHintSpell = aoeHintSpell
+    meta.rawACSpell = _acRawStatus == "available" and rawSpell or nil
+    meta.rawACStatus = _acRawStatus
+    meta.finalPrimarySpell = pos1
+    meta.fallbackDropReason = fallbackDropReason
+    meta.strictState = strict
+    meta.rotationCatalogRole = "context_only"
+    CopySafeSpellArray(meta.rotationCatalogSnapshot, rotSpells)
+    if source == "ac" and pos1 then
+        meta.reasonCode = "AC_PRIMARY"
+    elseif source == "pin" or source == "prefer" or source == "hybrid" then
+        meta.reasonCode = "EXPERIMENTAL_OVERRIDE"
+    else
+        meta.reasonCode = "NO_AC_PRIMARY"
+    end
+
+    self:RecordDecisionChange()
 
     return queue
 end

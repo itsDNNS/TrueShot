@@ -30,11 +30,18 @@ local Engine = TrueShot.Engine
 
 local TRUESHOT_DURATION = 19  -- Sentinel gets 19s (not 15s); timer is fallback only
 
+local function IsSecretValue(value)
+    return issecretvalue and issecretvalue(value) or false
+end
+
 -- Prefer aura check over timer (handles spell replacement + variable duration)
 local function IsTrueshotBuffActive(state)
     if C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
         local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, 288613)
-        if ok then return aura ~= nil end
+        if ok then
+            if IsSecretValue(aura) then return false end
+            return aura ~= nil
+        end
     end
     return GetTime() < state.trueshotUntil
 end
@@ -202,11 +209,11 @@ function Profile:EvalCondition(cond)
     elseif cond.type == "aimed_shot_ready" then
         if C_Spell and C_Spell.GetSpellCharges then
             local ok, info = pcall(C_Spell.GetSpellCharges, SPELLS.AimedShot)
-            if ok and info and info.currentCharges then
-                if issecretvalue and issecretvalue(info.currentCharges) then
-                    return false
-                end
-                return info.currentCharges > 0
+            if ok and not IsSecretValue(info) and info ~= nil then
+                local currentCharges = info.currentCharges
+                if IsSecretValue(currentCharges) then return false end
+                if type(currentCharges) ~= "number" then return false end
+                return currentCharges > 0
             end
         end
         return false

@@ -78,6 +78,18 @@ local function CreateCheckbox(parent, label, description, relativeTo, key)
     return check, desc
 end
 
+local function SetCheckboxEnabled(check, desc, enabled)
+    if enabled then
+        check:Enable()
+        check.Text:SetFontObject(GameFontHighlight)
+        desc:SetFontObject(GameFontHighlightSmall)
+    else
+        check:Disable()
+        check.Text:SetFontObject(GameFontDisable)
+        desc:SetFontObject(GameFontDisableSmall)
+    end
+end
+
 local function CreateSlider(parent, label, description, relativeTo, key, minVal, maxVal, step)
     local container = CreateFrame("Frame", nil, parent)
     container:SetPoint("TOPLEFT", relativeTo, "BOTTOMLEFT", 0, -14)
@@ -159,10 +171,16 @@ local function CreateGeneralPanel()
     local _, subtitle = CreatePanelTitle(panel, "General",
         "Basic overlay behavior and visibility.")
 
+    local strictCheck, strictDesc = CreateCheckbox(
+        panel, "Strict Compliance",
+        "Show Blizzard's current Assisted Combat recommendation unchanged and disable experimental overrides.",
+        subtitle, "strictCompliance"
+    )
+
     local lockCheck, lockDesc = CreateCheckbox(
         panel, "Lock overlay frame",
         "Disable dragging and make the overlay click-through.",
-        subtitle, "locked"
+        strictDesc, "locked"
     )
 
     local enemyCheck, enemyDesc = CreateCheckbox(
@@ -207,6 +225,7 @@ local function CreateGeneralPanel()
 
     panel:SetScript("OnShow", function()
         RunAfterLayout(panel, nil, function()
+            strictCheck.sync()
             lockCheck.sync()
             enemyCheck.sync()
             combatCheck.sync()
@@ -426,25 +445,25 @@ local function CreateFeaturesPanel()
     )
 
     local whyCheck, whyDesc = CreateCheckbox(
-        sc, "Show recommendation reason",
-        "Display a label below the primary icon explaining why it was recommended (e.g. Withering Fire, Charge Dump).",
+        sc, "Experimental: show override reason",
+        "Outside Strict Compliance, display why an experimental override selected the primary icon.",
         rangeDesc, "showWhyOverlay"
     )
 
     local aoeHintCheck, aoeHintDesc = CreateCheckbox(
-        sc, "Show AoE hint icon",
-        "Display a secondary icon below the primary icon when an AoE ability is recommended (e.g. Wild Thrash at 2+ targets).",
+        sc, "Experimental: show AoE hint icon",
+        "Outside Strict Compliance, display a profile-derived AoE context icon below the primary icon.",
         whyDesc, "showAoeHint"
     )
 
     local glowCheck, glowDesc = CreateCheckbox(
-        sc, "Show override glow",
+        sc, "Experimental: show override glow",
         "Pulsing glow on the first icon when TrueShot overrides Assisted Combat (cyan for PIN, blue for PREFER).",
         aoeHintDesc, "showOverrideIndicator"
     )
 
     local phaseCheck, phaseDesc = CreateCheckbox(
-        sc, "Show phase indicator",
+        sc, "Experimental: show phase indicator",
         "Display the current rotation phase label above the overlay (e.g. Opener, Cooldowns, Execute).",
         glowDesc, "showPhaseIndicator"
     )
@@ -465,6 +484,24 @@ local function CreateFeaturesPanel()
         "Display a scrolling rhythm strip below the overlay showing cast alignment in real-time.",
         scorecardDesc, "showHeartbeat"
     )
+
+    local experimentalControls = {
+        { whyCheck, whyDesc },
+        { aoeHintCheck, aoeHintDesc },
+        { glowCheck, glowDesc },
+        { phaseCheck, phaseDesc },
+    }
+
+    local function SyncExperimentalControls()
+        local enabled = TrueShot.GetOpt("strictCompliance") == false
+        for _, control in ipairs(experimentalControls) do
+            SetCheckboxEnabled(control[1], control[2], enabled)
+        end
+    end
+
+    TrueShot.RegisterOptCallback(function(key)
+        if key == "strictCompliance" then SyncExperimentalControls() end
+    end)
 
     -- Positioning section
     local posHeader = CreateSectionHeader(sc, "Element Positioning", heartbeatDesc, -20)
@@ -533,6 +570,7 @@ local function CreateFeaturesPanel()
             aoeHintCheck.sync()
             glowCheck.sync()
             phaseCheck.sync()
+            SyncExperimentalControls()
             scorecardCheck.sync()
             heartbeatCheck.sync()
             UIDropDownMenu_SetText(reasonPosDropdown, TrueShot.GetOpt("reasonPosition") or "BELOW")

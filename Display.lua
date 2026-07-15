@@ -23,16 +23,32 @@ local CONTAINER_PADDING_X = 8
 local CONTAINER_PADDING_Y = 6
 local ICON_TEXTURE_INSET = 3
 local QUEUE_STABILIZATION_TICKS = 2
-local QUEUE_HIDE_STABILIZATION_TICKS = 5  -- slower fade-out: require 5 stable ticks before hiding
+local QUEUE_HIDE_STABILIZATION_TICKS = 5  -- nominal 5-tick hide threshold; 0.30s deadline may hide first
+-- Combat updates run at 10 Hz. This bounds stale presentation to three ticks
+-- even when the newest queue candidate oscillates on every update.
+local MAX_QUEUE_STALE_AGE = 0.30
 
 local displayedQueueState = { count = 0 }
 local pendingQueueState = { count = 0 }
 local pendingQueueTicks = 0
+local pendingWindowStart = nil
+local staleDeadlineForcedLastCommit = false
 local allowImmediateQueueUpdate = false
 local displayEnabled = false
 
 -- Committed metadata snapshot (persisted alongside displayedQueueState)
-local committedMeta = { source = "ac", reason = nil }
+local committedMeta = {
+    source = "none",
+    reason = nil,
+    reasonCode = "NO_AC_PRIMARY",
+    rawACStatus = "unavailable",
+    strictState = true,
+    rotationCatalogRole = "context_only",
+}
+
+local function IsSecretValue(value)
+    return issecretvalue and issecretvalue(value) or false
+end
 
 ------------------------------------------------------------------------
 -- Container frame
@@ -118,6 +134,15 @@ local function ClearCooldown(icon)
     ClearCooldownText(icon)
 end
 
+local function ClearChargeDisplay(icon)
+    if not icon then return end
+    if icon.chargeCooldown then icon.chargeCooldown:Hide() end
+    if icon.chargeCount then
+        icon.chargeCount:SetText("")
+        icon.chargeCount:Hide()
+    end
+end
+
 local function ResetStoredQueue(state)
     local prevCount = state.count or 0
     for i = 1, prevCount do
@@ -150,6 +175,7 @@ end
 local function ClearPendingQueue()
     ResetStoredQueue(pendingQueueState)
     pendingQueueTicks = 0
+    pendingWindowStart = nil
 end
 
 local keybindCache = {}
@@ -193,7 +219,7 @@ local function ResolveSpellNameFromID(spellID)
     if not spellID then return nil end
     if C_Spell and C_Spell.GetSpellName then
         local ok, name = pcall(C_Spell.GetSpellName, spellID)
-        if ok and name then
+        if ok and not IsSecretValue(name) and name ~= nil then
             return NormalizeSpellName(name)
         end
     end
@@ -210,8 +236,11 @@ local function ResolveSpellIDFromIdentifier(spellIdentifier)
 
     if C_Spell and C_Spell.GetSpellInfo then
         local ok, info = pcall(C_Spell.GetSpellInfo, spellIdentifier)
-        if ok and info and info.spellID then
-            return info.spellID
+        if ok and not IsSecretValue(info) and info ~= nil and type(info) == "table" then
+            local spellID = info.spellID
+            if not IsSecretValue(spellID) and type(spellID) == "number" then
+                return spellID
+            end
         end
     end
 
@@ -274,7 +303,7 @@ local function ResolveActionSlotFromButton(button)
     if not button then return nil end
     if button.CalculateAction then
         local ok, slot = pcall(button.CalculateAction, button)
-        if ok and slot then return slot end
+        if ok and not IsSecretValue(slot) and slot ~= nil then return slot end
     end
     return button.action
 end
@@ -1180,6 +1209,26 @@ local function TrySetCooldownFromLedger(icon, spellID)
     return true
 end
 
+local function ReadCooldownNumbers(cooldown)
+    if IsSecretValue(cooldown) then return nil end
+    if cooldown == nil or type(cooldown) ~= "table" then return nil end
+
+    local startTime = cooldown.startTime
+    local duration = cooldown.duration
+    local modRate = cooldown.modRate
+    if IsSecretValue(startTime) or IsSecretValue(duration) or IsSecretValue(modRate) then
+        return nil
+    end
+
+    if startTime == nil then startTime = 0 end
+    if duration == nil then duration = 0 end
+    if modRate == nil then modRate = 1 end
+    if type(startTime) ~= "number" or type(duration) ~= "number" or type(modRate) ~= "number" then
+        return nil
+    end
+    return startTime, duration, modRate
+end
+
 function Display:UpdateCooldown(icon, spellID)
     if not icon or not icon.cooldown then return end
     if not TrueShot.GetOpt("showCooldownSwipe") or not spellID then
@@ -1199,21 +1248,20 @@ function Display:UpdateCooldown(icon, spellID)
     local apiAuthoritative = false
     if actionSlot and C_ActionBar_GetActionCooldown then
         local ok, cooldown = pcall(C_ActionBar_GetActionCooldown, actionSlot)
-        if ok and cooldown then
+        if ok and not IsSecretValue(cooldown) and cooldown ~= nil then
             -- Cache isActive and gate it through issecretvalue BEFORE any
             -- comparison: comparing a secret value to nil/true would taint the
             -- boolean and leak through control flow. Only when the value is
             -- known non-secret may we test it against nil and true.
             local isActive = cooldown.isActive
-            local isActiveReadable = not (issecretvalue and issecretvalue(isActive))
+            local isActiveReadable = not IsSecretValue(isActive)
             if isActiveReadable and isActive ~= nil then
                 shouldShow = isActive == true
                 actionBarResolved = true
                 apiAuthoritative = true
             else
-                local startTime = cooldown.startTime or 0
-                local duration = cooldown.duration or 0
-                if not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration))) then
+                local startTime, duration = ReadCooldownNumbers(cooldown)
+                if startTime then
                     shouldShow = startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION
                     actionBarResolved = true
                     apiAuthoritative = true
@@ -1223,17 +1271,13 @@ function Display:UpdateCooldown(icon, spellID)
     end
     if not actionBarResolved and C_Spell_GetSpellCooldown then
         local ok, cooldown = pcall(C_Spell_GetSpellCooldown, spellID)
-        if ok and cooldown then
-            local startTime = cooldown.startTime or 0
-            local duration = cooldown.duration or 0
-            -- If values are secret, still allow DurationObject path (it handles secrets)
-            local valuesReadable = not (issecretvalue and
-                (issecretvalue(startTime) or issecretvalue(duration)))
-            if valuesReadable then
+        if ok and not IsSecretValue(cooldown) and cooldown ~= nil then
+            local startTime, duration = ReadCooldownNumbers(cooldown)
+            if startTime then
                 shouldShow = startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION
                 apiAuthoritative = true
             else
-                shouldShow = true  -- trust DurationObject to handle it
+                shouldShow = true  -- a readable DurationObject may still handle it
             end
         end
     end
@@ -1253,7 +1297,7 @@ function Display:UpdateCooldown(icon, spellID)
     -- Prefer DurationObject path (secret-safe, available since build 66562)
     if actionSlot and C_ActionBar_GetActionCooldownDuration and icon.cooldown.SetCooldownFromDurationObject then
         local ok, durObj = pcall(C_ActionBar_GetActionCooldownDuration, actionSlot)
-        if ok and durObj then
+        if ok and not IsSecretValue(durObj) and durObj ~= nil then
             icon.cooldown:SetCooldownFromDurationObject(durObj)
             icon.cooldown:Show()
             return
@@ -1262,7 +1306,7 @@ function Display:UpdateCooldown(icon, spellID)
 
     if C_Spell_GetSpellCooldownDuration and icon.cooldown.SetCooldownFromDurationObject then
         local ok, durObj = pcall(C_Spell_GetSpellCooldownDuration, spellID)
-        if ok and durObj then
+        if ok and not IsSecretValue(durObj) and durObj ~= nil then
             icon.cooldown:SetCooldownFromDurationObject(durObj)
             icon.cooldown:Show()
             return
@@ -1272,14 +1316,11 @@ function Display:UpdateCooldown(icon, spellID)
     -- Tier-2 fallback: direct SetCooldown with secret guards.
     if C_Spell_GetSpellCooldown then
         local ok, cooldown = pcall(C_Spell_GetSpellCooldown, spellID)
-        if ok and cooldown then
-            local startTime = cooldown.startTime or 0
-            local duration = cooldown.duration or 0
-            local readable = not (issecretvalue and
-                (issecretvalue(startTime) or issecretvalue(duration)))
-            if readable and startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION
+        if ok and not IsSecretValue(cooldown) and cooldown ~= nil then
+            local startTime, duration, modRate = ReadCooldownNumbers(cooldown)
+            if startTime and startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION
                and icon.cooldown.SetCooldown then
-                icon.cooldown:SetCooldown(startTime, duration, cooldown.modRate or 1)
+                icon.cooldown:SetCooldown(startTime, duration, modRate)
                 icon.cooldown:Show()
                 return
             end
@@ -1303,12 +1344,9 @@ local function ReadRemainingCooldownSeconds(spellID)
 
     if actionSlot and C_ActionBar_GetActionCooldown then
         local ok, cooldown = pcall(C_ActionBar_GetActionCooldown, actionSlot)
-        if ok and cooldown then
-            local startTime = cooldown.startTime
-            local duration = cooldown.duration
-            local readable = type(startTime) == "number" and type(duration) == "number"
-                and not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration)))
-            if readable then
+        if ok and not IsSecretValue(cooldown) and cooldown ~= nil then
+            local startTime, duration = ReadCooldownNumbers(cooldown)
+            if startTime then
                 if startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION then
                     local remaining = (startTime + duration) - now
                     if remaining > 0 then return remaining end
@@ -1320,12 +1358,9 @@ local function ReadRemainingCooldownSeconds(spellID)
 
     if C_Spell_GetSpellCooldown then
         local ok, cooldown = pcall(C_Spell_GetSpellCooldown, spellID)
-        if ok and cooldown then
-            local startTime = cooldown.startTime
-            local duration = cooldown.duration
-            local readable = type(startTime) == "number" and type(duration) == "number"
-                and not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration)))
-            if readable then
+        if ok and not IsSecretValue(cooldown) and cooldown ~= nil then
+            local startTime, duration = ReadCooldownNumbers(cooldown)
+            if startTime then
                 if startTime > 0 and duration >= MIN_COOLDOWN_SWIPE_DURATION then
                     local remaining = (startTime + duration) - now
                     if remaining > 0 then return remaining end
@@ -1348,6 +1383,7 @@ local function ReadRemainingCooldownSeconds(spellID)
 end
 
 local function FormatCooldownRemaining(remaining)
+    if IsSecretValue(remaining) or type(remaining) ~= "number" then return nil end
     if remaining >= 60 then
         return string.format("%dm", math.ceil(remaining / 60))
     end
@@ -1367,20 +1403,28 @@ function Display:UpdateCooldownText(icon, spellID)
     end
 
     local remaining = ReadRemainingCooldownSeconds(spellID)
-    if not remaining then
+    if IsSecretValue(remaining) then
+        ClearCooldownText(icon)
+        return
+    end
+    if remaining == nil then
         ClearCooldownText(icon)
         return
     end
 
-    icon.cooldownText:SetText(FormatCooldownRemaining(remaining))
+    local text = FormatCooldownRemaining(remaining)
+    if not text then
+        ClearCooldownText(icon)
+        return
+    end
+    icon.cooldownText:SetText(text)
     icon.cooldownText:Show()
 end
 
 function Display:UpdateChargeCooldown(icon, spellID)
     if not icon or not icon.chargeCooldown then return end
     if not TrueShot.GetOpt("showCooldownSwipe") or not spellID then
-        icon.chargeCooldown:Hide()
-        if icon.chargeCount then icon.chargeCount:Hide() end
+        ClearChargeDisplay(icon)
         return
     end
 
@@ -1388,34 +1432,33 @@ function Display:UpdateChargeCooldown(icon, spellID)
 
     -- Read charge info
     if not C_Spell_GetSpellCharges then
-        icon.chargeCooldown:Hide()
-        if icon.chargeCount then icon.chargeCount:Hide() end
+        ClearChargeDisplay(icon)
         return
     end
 
     local ok, charges = pcall(C_Spell_GetSpellCharges, spellID)
-    if not ok or not charges or not charges.maxCharges then
-        icon.chargeCooldown:Hide()
-        if icon.chargeCount then icon.chargeCount:Hide() end
+    if not ok or IsSecretValue(charges) then
+        ClearChargeDisplay(icon)
+        return
+    end
+    if charges == nil or type(charges) ~= "table" then
+        ClearChargeDisplay(icon)
         return
     end
 
     local current = charges.currentCharges
     local maxC = charges.maxCharges
-
-    -- Secret check before any comparison (Finding 3: maxCharges > 1
-    -- must not run on a secret value)
-    if issecretvalue and (issecretvalue(current) or issecretvalue(maxC)) then
-        -- Secret: passthrough count for display, skip edge ring
-        icon.chargeCount:SetText(current)
-        icon.chargeCount:Show()
-        icon.chargeCooldown:Hide()
+    if IsSecretValue(current) or IsSecretValue(maxC) then
+        ClearChargeDisplay(icon)
+        return
+    end
+    if type(current) ~= "number" or type(maxC) ~= "number" then
+        ClearChargeDisplay(icon)
         return
     end
 
-    if (maxC or 0) <= 1 then
-        icon.chargeCooldown:Hide()
-        if icon.chargeCount then icon.chargeCount:Hide() end
+    if maxC <= 1 then
+        ClearChargeDisplay(icon)
         return
     end
 
@@ -1427,7 +1470,7 @@ function Display:UpdateChargeCooldown(icon, spellID)
         -- Prefer DurationObject for the edge ring (secret-safe)
         if actionSlot and C_ActionBar_GetActionChargeDuration and icon.chargeCooldown.SetCooldownFromDurationObject then
             local durOk, durObj = pcall(C_ActionBar_GetActionChargeDuration, actionSlot)
-            if durOk and durObj then
+            if durOk and not IsSecretValue(durObj) and durObj ~= nil then
                 icon.chargeCooldown:SetCooldownFromDurationObject(durObj)
                 icon.chargeCooldown:Show()
                 return
@@ -1436,7 +1479,7 @@ function Display:UpdateChargeCooldown(icon, spellID)
 
         if C_Spell_GetSpellChargeDuration and icon.chargeCooldown.SetCooldownFromDurationObject then
             local durOk, durObj = pcall(C_Spell_GetSpellChargeDuration, spellID)
-            if durOk and durObj then
+            if durOk and not IsSecretValue(durObj) and durObj ~= nil then
                 icon.chargeCooldown:SetCooldownFromDurationObject(durObj)
                 icon.chargeCooldown:Show()
                 return
@@ -1446,21 +1489,20 @@ function Display:UpdateChargeCooldown(icon, spellID)
         -- Fallback: direct SetCooldown with secret guards (Finding 2)
         local startTime = charges.cooldownStartTime
         local duration = charges.cooldownDuration
-        if startTime and duration then
-            if issecretvalue and (issecretvalue(startTime) or issecretvalue(duration)) then
-                icon.chargeCooldown:Hide()
-                return
-            end
-            local modRate = charges.chargeModRate or 1.0
-            if issecretvalue and issecretvalue(modRate) then modRate = 1.0 end
+        local modRate = charges.chargeModRate
+        if IsSecretValue(startTime) or IsSecretValue(duration) or IsSecretValue(modRate) then
+            icon.chargeCooldown:Hide()
+            return
+        end
+        if modRate == nil then modRate = 1.0 end
+        if type(startTime) == "number" and type(duration) == "number" and type(modRate) == "number" then
             icon.chargeCooldown:SetCooldown(startTime, duration, modRate)
             icon.chargeCooldown:Show()
         else
             icon.chargeCooldown:Hide()
         end
     else
-        icon.chargeCooldown:Hide()
-        icon.chargeCount:Hide()
+        ClearChargeDisplay(icon)
     end
 end
 
@@ -1513,7 +1555,7 @@ function Display:UpdateQueue(queue)
                     local outOfRange = false
                     if C_Spell and C_Spell.IsSpellInRange then
                         local ok, result = pcall(C_Spell.IsSpellInRange, spellID, "target")
-                        if ok and result == false then outOfRange = true end
+                        if ok and not IsSecretValue(result) and result == false then outOfRange = true end
                     end
                     if outOfRange then
                         icon.texture:SetDesaturated(true)
@@ -1598,25 +1640,46 @@ function Display:UpdateQueue(queue)
 
 end
 
-function Display:RenderQueueNow(queue)
+function Display:RenderQueueNow(queue, forcedByStaleDeadline)
     self:UpdateQueue(queue)
     StoreQueue(displayedQueueState, queue, TrueShot.GetOpt("iconCount"))
     -- Snapshot committed metadata for analytics
     local meta = Engine.lastQueueMeta
     committedMeta.source = meta.source
     committedMeta.reason = meta.reason
+    committedMeta.reasonCode = meta.reasonCode
+    committedMeta.rawACStatus = meta.rawACStatus
+    committedMeta.strictState = meta.strictState == true
+    committedMeta.rotationCatalogRole = meta.rotationCatalogRole
+    staleDeadlineForcedLastCommit = forcedByStaleDeadline == true
     ClearPendingQueue()
     allowImmediateQueueUpdate = false
 end
 
 function Display:ResetQueueStabilization()
     ClearPendingQueue()
-    allowImmediateQueueUpdate = false
+    allowImmediateQueueUpdate = true
+    staleDeadlineForcedLastCommit = false
 end
 
 function Display:FlushQueueStabilization()
     ClearPendingQueue()
     allowImmediateQueueUpdate = true
+    staleDeadlineForcedLastCommit = false
+end
+
+function Display:GetStabilizationSnapshot()
+    local pendingAge = 0
+    if pendingWindowStart then
+        pendingAge = math.max(0, GetTime() - pendingWindowStart)
+    end
+    return {
+        displayedPrimary = displayedQueueState[1],
+        pendingPrimary = pendingQueueState[1],
+        pendingTicks = pendingQueueTicks,
+        pendingAge = pendingAge,
+        staleDeadlineForcedLastCommit = staleDeadlineForcedLastCommit,
+    }
 end
 
 function Display:ConsumeQueueUpdate(queue, inCombat)
@@ -1633,6 +1696,7 @@ function Display:ConsumeQueueUpdate(queue, inCombat)
     end
 
     if QueuesMatch(displayedQueueState, queue, count) then
+        -- Reappearing A freshly reconfirms the visible value, so discard pending B.
         ClearPendingQueue()
         -- Still run UpdateQueue for per-tick visuals (cooldown swipes, cast feedback, range tint)
         self:UpdateQueue(queue)
@@ -1645,12 +1709,18 @@ function Display:ConsumeQueueUpdate(queue, inCombat)
         StoreQueue(pendingQueueState, queue, count)
         pendingQueueTicks = 1
     end
+    if not pendingWindowStart then
+        pendingWindowStart = GetTime()
+    end
 
     -- Hiding (empty queue) requires more ticks than switching spells
     local isHiding = (#queue == 0) and (displayedQueueState.count or 0) > 0
     local threshold = isHiding and QUEUE_HIDE_STABILIZATION_TICKS or QUEUE_STABILIZATION_TICKS
 
-    if pendingQueueTicks >= threshold then
+    local pendingAge = GetTime() - pendingWindowStart
+    if pendingAge + 0.000001 >= MAX_QUEUE_STALE_AGE then
+        self:RenderQueueNow(queue, true)
+    elseif pendingQueueTicks >= threshold then
         self:RenderQueueNow(queue)
     else
         -- Pending but not stable yet: refresh visuals with currently displayed spells
@@ -1677,7 +1747,8 @@ function Display:OnSpellCastSucceeded(spellID)
             displayedSpell,
             committedMeta.source or "ac",
             committedMeta.reason,
-            displayedQueue
+            displayedQueue,
+            committedMeta
         )
     end
 

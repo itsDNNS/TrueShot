@@ -65,6 +65,20 @@ function TrueShot.DiagnosticsEnabled()
     return TrueShot.GetOpt("enableDiagnostics") and true or false
 end
 
+TrueShot.RegisterOptCallback(function(key, value)
+    if key == "enableDiagnostics" and value ~= true
+        and TrueShot.Engine and TrueShot.Engine.ClearDecisionHistory then
+        TrueShot.Engine:ClearDecisionHistory()
+    end
+end)
+
+local function AssistedCombatAvailable()
+    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable then return false end
+    local ok, available = pcall(C_AssistedCombat.IsAvailable)
+    if not ok or (issecretvalue and issecretvalue(available)) then return false end
+    return available == true
+end
+
 ------------------------------------------------------------------------
 -- Lifecycle
 ------------------------------------------------------------------------
@@ -93,7 +107,7 @@ local function TryActivate()
         return false
     end
 
-    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then
+    if not AssistedCombatAvailable() then
         Display:Disable()
         return false
     end
@@ -119,7 +133,7 @@ eventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 
 local function ShouldShowOverlay()
     if TrueShot.GetOpt("hidden") then return false end
-    if not C_AssistedCombat or not C_AssistedCombat.IsAvailable() then return false end
+    if not AssistedCombatAvailable() then return false end
     if TrueShot.GetOpt("enemyTargetOnly") then
         if UnitExists("target") and UnitCanAttack("player", "target") then return true end
         return UnitAffectingCombat("player")
@@ -267,6 +281,29 @@ end)
 -- Slash commands
 ------------------------------------------------------------------------
 
+local function SafeDebugText(value, fallback)
+    if issecretvalue and issecretvalue(value) then return "<secret>" end
+    if value == nil then return fallback or "none" end
+    local valueType = type(value)
+    if valueType == "string" or valueType == "number" or valueType == "boolean" then
+        return tostring(value)
+    end
+    return fallback or "unavailable"
+end
+
+local function SafeDebugSpell(spellID)
+    if issecretvalue and issecretvalue(spellID) then return "<secret>" end
+    if spellID == nil or type(spellID) ~= "number" then return "none" end
+    local name = nil
+    if C_Spell and C_Spell.GetSpellName then
+        local ok, result = pcall(C_Spell.GetSpellName, spellID)
+        if ok and not (issecretvalue and issecretvalue(result)) and type(result) == "string" then
+            name = result
+        end
+    end
+    return (name or "Spell") .. " (" .. tostring(spellID) .. ")"
+end
+
 SLASH_TRUESHOT1 = "/ts"
 SLASH_TRUESHOT2 = "/trueshot"
 SlashCmdList["TRUESHOT"] = function(msg)
@@ -345,10 +382,37 @@ SlashCmdList["TRUESHOT"] = function(msg)
         local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
         print("|cff00ff00[TS] Queue:|r")
         for i, id in ipairs(queue) do
-            local name = C_Spell.GetSpellName(id) or "?"
             local castable = Engine:IsSpellCastable(id) and "usable" or "not usable"
-            print("  " .. i .. ": " .. name .. " (" .. id .. ") [" .. castable .. "]")
+            print("  " .. i .. ": " .. SafeDebugSpell(id) .. " [" .. castable .. "]")
         end
+        local meta = Engine.lastQueueMeta or {}
+        print("|cff00ff00[TS] Decision:|r")
+        print("  Raw AC: " .. SafeDebugSpell(meta.rawACSpell)
+            .. " [" .. SafeDebugText(meta.rawACStatus, "unavailable") .. "]")
+        print("  Final primary: " .. SafeDebugSpell(meta.finalPrimarySpell))
+        print("  Source/reason: " .. SafeDebugText(meta.source)
+            .. " / " .. SafeDebugText(meta.reasonCode))
+        print("  Detail: reason=" .. SafeDebugText(meta.reason)
+            .. ", fallback/drop=" .. SafeDebugText(meta.fallbackDropReason))
+        local catalog = meta.rotationCatalogSnapshot
+        local catalogCount = 0
+        if not (issecretvalue and issecretvalue(catalog)) and type(catalog) == "table" then
+            catalogCount = #catalog
+        end
+        print("  Strict: " .. SafeDebugText(meta.strictState)
+            .. ", rotation catalog context: " .. tostring(catalogCount))
+        if Display and Display.GetStabilizationSnapshot then
+            local stabilization = Display:GetStabilizationSnapshot()
+            if not (issecretvalue and issecretvalue(stabilization)) and type(stabilization) == "table" then
+                print("  Display: shown=" .. SafeDebugSpell(stabilization.displayedPrimary)
+                    .. ", pending=" .. SafeDebugSpell(stabilization.pendingPrimary)
+                    .. ", ticks=" .. SafeDebugText(stabilization.pendingTicks, "0")
+                    .. ", age=" .. SafeDebugText(stabilization.pendingAge, "0")
+                    .. ", deadlineForced=" .. SafeDebugText(stabilization.staleDeadlineForcedLastCommit, "false"))
+            end
+        end
+        local recentCount = Engine.GetDecisionHistoryCount and Engine:GetDecisionHistoryCount() or 0
+        print("  Diagnostic decision changes retained: " .. tostring(recentCount))
         local profile = Engine.activeProfile
         if profile and profile.GetDebugLines then
             print("|cff00ff00[TS] Profile State:|r")
