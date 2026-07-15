@@ -70,8 +70,8 @@ if ! grep -q "^## Version: $VERSION_VALUE$" "$ADDON_DIR/TrueShot.toc"; then
     exit 1
 fi
 
-if ! grep -q "^## Interface: 120005$" "$ADDON_DIR/TrueShot.toc"; then
-    echo "Packaged TOC Interface is not 120005" >&2
+if ! grep -q "^## Interface: 120007$" "$ADDON_DIR/TrueShot.toc"; then
+    echo "Packaged TOC Interface is not 120007" >&2
     exit 1
 fi
 

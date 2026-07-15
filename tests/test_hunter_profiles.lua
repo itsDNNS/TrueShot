@@ -1119,6 +1119,27 @@ test("Hunter shipped profiles do not use legacy PIN/PREFER rule types", function
     end
 end)
 
+test("MM Sentinel fails closed when Trueshot aura is secret", function()
+    local profile = P("Hunter.MM.Sentinel")
+    profile:OnSpellCast(288613)
+    set_player_aura(288613, SECRET)
+    assert_false(profile:EvalCondition({ type = "trueshot_active" }),
+        "a secret aura must not branch as active or fall back to the cast timer")
+end)
+
+test("MM and SV charge helpers fail closed on secret values", function()
+    _charges[19434] = { currentCharges = SECRET, maxCharges = 2 }
+    assert_false(P("Hunter.MM.Sentinel"):EvalCondition({ type = "aimed_shot_ready" }))
+
+    _charges[259495] = SECRET
+    assert_false(P("Hunter.SV.PackLeader"):EvalCondition({
+        type = "wfb_charges", op = ">=", value = 1,
+    }))
+
+    local sentinelLines = P("Hunter.SV.Sentinel"):GetDebugLines()
+    assert_true(type(sentinelLines) == "table", "secret charge debug path must not throw")
+end)
+
 ------------------------------------------------------------------------
 print(string.format("\n%d passed, %d failed", passed, failed))
 if failed > 0 then os.exit(1) end

@@ -48,9 +48,13 @@ These are currently safe enough to build baseline presentation behavior on:
 
 Use:
 
-- base queue
-- lookahead queue
-- fallback recommendation source
+- `GetNextCastSpell()` is the current Blizzard recommendation and the only
+  Assisted Combat source that may fill Strict Slot 1.
+- `GetRotationSpells()` is a rotation catalog. Its order is not a documented
+  priority list, future queue, or sequence of predicted casts.
+- Catalog entries may appear only as supporting context behind an existing
+  valid primary; they must never be promoted into an empty Slot 1 in either
+  Strict or Experimental mode, and never count as combat-trace `soft_match`.
 
 ### Spell ownership / availability checks
 
@@ -140,7 +144,7 @@ These are acceptable only when their output is non-authoritative, display-only, 
 
 - "Spell X was cast by the player, so start a local timer."
 - "Spell Y unlocks Spell Z, so mark Z as available until consumed."
-- "Assisted Combat currently surfaces Spell X in its primary or rotation suggestions, so use that as a legal readiness gate for an override."
+- "Assisted Combat's current primary equals Spell X, so an experimental rule may record that direct recommendation." Rotation-catalog membership alone is context, not readiness or future-cast evidence.
 - "The target is casting, so interrupt can be surfaced."
 - "Nameplate count is at least N, so prefer an AoE branch."
 - "Spell X was cast, `GetSpellBaseCooldown` returns 30000ms (non-secret), and we observed cast success, so Spell X is on cooldown until `GetTime() + 30`." This is the `State/CDLedger` pattern. Live `GetSpellBaseCooldown` values are preferred (they reflect talent CDR), with hardcoded `spec.base_ms` as a fallback when the API returns 0, nil, or secret. Haste scaling is applied through `UnitSpellHaste("player")` only for spells explicitly flagged `haste_scaled`, and degrades cleanly to "no scaling" when the read is secret.
@@ -148,7 +152,10 @@ These are acceptable only when their output is non-authoritative, display-only, 
 
 Strict-mode baseline:
 
-- AC output may drive the main queue.
+- A readable, non-secret `GetNextCastSpell()` result drives Strict Slot 1 unchanged.
+- If that result is nil, secret, errors, or is unavailable, Strict Slot 1 remains empty; the rotation catalog cannot fill it.
+- `GetRotationSpells()` entries may be displayed only as supporting rotation context behind that valid primary.
+- Experimental blacklisting or local castability gating may remove the raw primary and leave Slot 1 empty; catalog context does not replace it.
 - Profile data may annotate, label, suppress duplicates, or show static hints.
 - Local timer and charge heuristics must not independently replace AC position 1.
 

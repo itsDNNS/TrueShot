@@ -1,6 +1,6 @@
-## Interface: 120005
+## Interface: 120007
 ## Title: TrueShot
-## Notes: Rotation overlay for WoW Midnight. Layers priority fixes on top of Blizzard Assisted Combat.
+## Notes: Rotation overlay for WoW Midnight. Presents Blizzard Assisted Combat with optional experimental profile context.
 ## Author: itsDNNS
 ## Version: @project-version@
 ## X-Category: Combat

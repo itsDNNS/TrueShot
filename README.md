@@ -8,7 +8,7 @@ A World of Warcraft addon for Retail Midnight that presents and explains Blizzar
 
 Blizzard's built-in rotation helper gets you started, but Midnight's addon model limits what third-party addons can safely know and decide during combat. TrueShot's shippable baseline is an Assisted Combat presentation layer: it makes the recommendation easier to read, adds keybinds and context, and provides Hunter-specific learning views without bypassing secret-value restrictions.
 
-Current release lane: `0.27.0-alpha.1`, a strict AC-primary Hunter validation build for WoW `12.0.5.67114` / Interface `120005`.
+Current development target: WoW Retail `12.0.7.68453` / Interface `120007`. Existing client-smoke records remain tied to the builds named in their validation documents.
 
 Some existing override rules are retained as experimental research while their signals are validated. They are not the product baseline for a clean Midnight-compliant release.
 
@@ -54,7 +54,7 @@ TrueShot is not a full rotation engine. It is an overlay/trainer:
 1. **Blizzard Assisted Combat** provides the base recommendation via `C_AssistedCombat.GetNextCastSpell()`
 2. **TrueShot presentation rules** label, stabilize, and explain the recommendation
 3. **Profile hints** provide manually selected Hunter learning context such as openers and burst checklists
-4. **Remaining positions** can be shown from `C_AssistedCombat.GetRotationSpells()` when available
+4. **Supporting positions** can show entries from `C_AssistedCombat.GetRotationSpells()` as rotation-catalog context only, behind a valid current recommendation
 
 Hunter live overrides are explicitly marked as `EXPERIMENTAL_PIN` / `EXPERIMENTAL_PREFER`. The target release posture is fail-safe: if a signal is unavailable, secret, or unvalidated, TrueShot degrades to AC presentation instead of inventing a recommendation.
 

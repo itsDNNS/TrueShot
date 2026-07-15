@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Strict Assisted Combat primary integrity**. Strict Compliance now preserves a readable, non-secret Blizzard current recommendation unchanged in Slot 1, including diagnostic recomputes with no active profile. A nil, secret, invalid, errored, or unavailable primary leaves the Strict queue empty instead of promoting a rotation-catalog entry.
+- **Bounded display stabilization**. Queue smoothing now commits the newest oscillating candidate after at most 0.30 seconds, while cast and lifecycle flushes remain immediate.
+- **Secret-value handling**. Aura, charge, cooldown-number, and charge-text paths now fail closed before comparisons, formatting, or UI setters.
+
+### Changed
+- **Rotation catalog labeling**. Supporting icons from `GetRotationSpells()` are context only, not predicted future casts; casts of those icons never receive `soft_match` classification in Strict or Experimental mode.
+- **Experimental primary correctness**. A blacklisted or locally uncastable raw primary may leave Slot 1 empty; rotation-catalog context is never promoted to replace it.
+- **Settings clarity**. Added a Strict Compliance checkbox and visibly disabled experimental-only display controls while Strict is active.
+
 ## v0.27.0 - 2026-05-01
 
 ### Added

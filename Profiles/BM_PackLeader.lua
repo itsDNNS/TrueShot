@@ -31,6 +31,17 @@ local Engine = TrueShot.Engine
 local BW_COOLDOWN = 30
 local BARBED_RECENT_WINDOW = 1.35
 
+local function ReadCurrentCharges(spellID)
+    if not C_Spell or not C_Spell.GetSpellCharges then return nil end
+    local ok, charges = pcall(C_Spell.GetSpellCharges, spellID)
+    if not ok or (issecretvalue and issecretvalue(charges)) then return nil end
+    if charges == nil or type(charges) ~= "table" then return nil end
+    local currentCharges = charges.currentCharges
+    if issecretvalue and issecretvalue(currentCharges) then return nil end
+    if type(currentCharges) ~= "number" then return nil end
+    return currentCharges
+end
+
 ------------------------------------------------------------------------
 -- Profile definition
 ------------------------------------------------------------------------
@@ -374,12 +385,7 @@ function Profile:GetHybridScore(spellID, bucketName, context)
     if bucketName == "barbed_filler" then
         local score = 20
         local chargeBonus = 0
-        if C_Spell and C_Spell.GetSpellCharges then
-            local ok, charges = pcall(C_Spell.GetSpellCharges, 217200)
-            if ok and charges and type(charges.currentCharges) == "number" then
-                chargeBonus = charges.currentCharges
-            end
-        end
+        chargeBonus = ReadCurrentCharges(217200) or 0
         score = score + chargeBonus
         if context.baseSpell == spellID then
             score = score + 1

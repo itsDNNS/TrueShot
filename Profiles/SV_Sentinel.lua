@@ -180,6 +180,22 @@ local function CompareNumber(value, op, threshold)
     return false
 end
 
+local function ReadChargeCounts(spellID)
+    if not C_Spell or not C_Spell.GetSpellCharges then return nil, nil end
+    local ok, info = pcall(C_Spell.GetSpellCharges, spellID)
+    if not ok or (issecretvalue and issecretvalue(info)) then return nil, nil end
+    if info == nil or type(info) ~= "table" then return nil, nil end
+    local currentCharges = info.currentCharges
+    local maxCharges = info.maxCharges
+    if issecretvalue and (issecretvalue(currentCharges) or issecretvalue(maxCharges)) then
+        return nil, nil
+    end
+    if type(currentCharges) ~= "number" or type(maxCharges) ~= "number" then
+        return nil, nil
+    end
+    return currentCharges, maxCharges
+end
+
 local function GetTipOfTheSpearStacks()
     if not C_UnitAuras or not C_UnitAuras.GetBuffDataByIndex then
         return 0
@@ -188,11 +204,15 @@ local function GetTipOfTheSpearStacks()
     for i = 1, 40 do
         local ok, aura = pcall(C_UnitAuras.GetBuffDataByIndex, "player", i)
         if not ok then return 0 end
-        if aura ~= nil and not (issecretvalue and issecretvalue(aura)) then
+        if issecretvalue and issecretvalue(aura) then return 0 end
+        if aura ~= nil then
             local spellId = aura.spellId
-            if not (issecretvalue and issecretvalue(spellId)) and spellId == SPELLS.TipOfTheSpear then
-                local stacks = aura.applications or 0
+            if issecretvalue and issecretvalue(spellId) then return 0 end
+            if spellId == SPELLS.TipOfTheSpear then
+                local stacks = aura.applications
                 if issecretvalue and issecretvalue(stacks) then return 0 end
+                if stacks == nil then stacks = 0 end
+                if type(stacks) ~= "number" then return 0 end
                 return stacks
             end
         end
@@ -235,13 +255,9 @@ function Profile:GetDebugLines()
 
     local wfbLine = "unknown"
     local tipStacks = GetTipOfTheSpearStacks()
-    if C_Spell and C_Spell.GetSpellCharges then
-        local ok, info = pcall(C_Spell.GetSpellCharges, SPELLS.WildfireBomb)
-        if ok and info and info.currentCharges then
-            if not (issecretvalue and issecretvalue(info.currentCharges)) then
-                wfbLine = string.format("%d/%d", info.currentCharges, info.maxCharges)
-            end
-        end
+    local currentCharges, maxCharges = ReadChargeCounts(SPELLS.WildfireBomb)
+    if currentCharges ~= nil then
+        wfbLine = string.format("%d/%d", currentCharges, maxCharges)
     end
 
     return {

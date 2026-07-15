@@ -211,8 +211,9 @@ test("Wildstalker: Rake is suppressed on the same target until the pandemic wind
         "Freshly applied Rake should count as active on the current target")
 
     local queue = Engine:ComputeQueue(2)
-    assert_eq(queue[1], 22568,
-        "Rake should not immediately re-surface on the same target after it was just applied")
+    assert_eq(queue[1], nil,
+        "A blocked raw primary must not cause a rotation-catalog entry to be promoted into slot 1")
+    assert_eq(Engine.lastQueueMeta.fallbackDropReason, "raw_ac_blacklisted")
 end)
 
 test("Wildstalker: Rake becomes refreshable inside the 4.5s pandemic window", function()
