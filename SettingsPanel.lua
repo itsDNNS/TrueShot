@@ -305,11 +305,11 @@ local function CreateAppearancePanel()
     end)
 
     -- Queue layout section
-    local queueHeader = CreateSectionHeader(panel, "Queue Layout", fisSlider, -18)
+    local queueHeader = CreateSectionHeader(panel, "Layout", fisSlider, -18)
 
     local countLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     countLabel:SetPoint("TOPLEFT", queueHeader, "BOTTOMLEFT", 0, -10)
-    countLabel:SetText("Icon count")
+    countLabel:SetText("Icons (first = next action, rest = context)")
 
     local countSlider = CreateFrame("Slider", "TrueShotIconCount", panel,
         "OptionsSliderTemplate")

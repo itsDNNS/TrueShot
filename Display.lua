@@ -1543,7 +1543,7 @@ function Display:UpdateQueue(queue)
 
             if texture or (icon:IsShown() and icon.spellID == spellID) then
                 -- Keybinds toggle
-                if TrueShot.GetOpt("showKeybinds") then
+                if i == 1 and TrueShot.GetOpt("showKeybinds") then
                     local key = GetKeybindForSpell(spellID)
                     icon.keybind:SetText(FormatKeybindForDisplay(key))
                 else
@@ -1754,11 +1754,10 @@ function Display:OnSpellCastSucceeded(spellID)
 
     if TrueShot.GetOpt("showCastFeedback") then
         local now = GetTime()
-        for _, icon in ipairs(icons) do
-            if icon.spellID == spellID then
-                icon.successUntil = now + SUCCESS_FLASH_DURATION
-                self:UpdateCastFeedback(icon, now)
-            end
+        local actionIcon = icons[1]
+        if actionIcon and actionIcon.spellID == spellID then
+            actionIcon.successUntil = now + SUCCESS_FLASH_DURATION
+            self:UpdateCastFeedback(actionIcon, now)
         end
     end
 
