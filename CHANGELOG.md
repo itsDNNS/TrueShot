@@ -8,6 +8,10 @@
 - **Secret-value handling**. Aura, charge, cooldown-number, and charge-text paths now fail closed before comparisons, formatting, or UI setters.
 
 ### Changed
+- **Single-action default**. The default icon count is now one instead of two; existing saved user settings continue to take precedence.
+- **Action-icon keybind**. Keybind text now appears only on the first, next-action icon.
+- **Action-icon cast feedback**. Cast-success flashes are now restricted to the first, next-action icon.
+- **Context labeling**. Settings and README copy now describe additional icons as unordered rotation-catalog context.
 - **Rotation catalog labeling**. Supporting icons from `GetRotationSpells()` are context only, not predicted future casts; casts of those icons never receive `soft_match` classification in Strict or Experimental mode.
 - **Experimental primary correctness**. A blacklisted or locally uncastable raw primary may leave Slot 1 empty; rotation-catalog context is never promoted to replace it.
 - **Settings clarity**. Added a Strict Compliance checkbox and visibly disabled experimental-only display controls while Strict is active.

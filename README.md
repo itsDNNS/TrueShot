@@ -62,7 +62,8 @@ Strict compliance mode is the default. Legacy live overrides are treated as expe
 
 ## Display Features
 
-- Compact queue overlay with configurable icon count and position
+- Compact queue overlay defaults to one next-action icon with its keybind and configurable position
+- Additional icons are optional, unordered rotation-catalog context, not predicted upcoming casts
 - **AoE hint icon** with bounce animation for AoE abilities (e.g. Wild Thrash)
 - **Queue stabilization** prevents icon flicker from AC instability
 - **Masque support** for icon skinning (optional, zero-dependency)
@@ -70,8 +71,8 @@ Strict compliance mode is the default. Legacy live overrides are treated as expe
 - **Queue orientation** (LEFT / RIGHT / UP / DOWN)
 - **Override glow** with pulsing animation for experimental PIN/PREFER output
 - **Charge cooldown** edge ring for multi-charge spells
-- **Keybind display** with macro and ElvUI action bar support
-- Cast success feedback, range indicator, cooldown swipes
+- **Action-icon keybind display** with macro and ElvUI action bar support
+- Action-icon cast success feedback, range indicator, cooldown swipes
 - Optional backdrop toggle for clean floating-icons look
 - Settings panel via `/ts options` with X/Y position controls
 - Tiered update rates (10Hz combat, 2Hz idle, 0Hz hidden)

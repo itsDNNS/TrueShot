@@ -11,7 +11,7 @@ TrueShot = TrueShot or {}
 TrueShotDB = TrueShotDB or {}
 
 local DEFAULTS = {
-    iconCount = 2,
+    iconCount = 1,
     iconSize = 40,
     iconSpacing = 4,
     locked = false,
