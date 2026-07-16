@@ -445,8 +445,8 @@ local function CreateFeaturesPanel()
     )
 
     local whyCheck, whyDesc = CreateCheckbox(
-        sc, "Experimental: show override reason",
-        "Outside Strict Compliance, display why an experimental override selected the primary icon.",
+        sc, "Experimental: show decision source",
+        "Outside Strict Compliance, label the primary icon as Blizzard's Assisted Combat recommendation or an experimental override with a short rule reason.",
         rangeDesc, "showWhyOverlay"
     )
 
