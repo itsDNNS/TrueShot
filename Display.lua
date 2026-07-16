@@ -45,31 +45,12 @@ local committedMeta = {
     strictState = true,
     rotationCatalogRole = "context_only",
     fallbackDropReason = nil,
+    phase = nil,
+    aoeHintSpell = nil,
 }
 
 local function IsSecretValue(value)
     return issecretvalue and issecretvalue(value) or false
-end
-
-local function SnapshotCommittedMeta()
-    local meta = Engine.lastQueueMeta
-    if not meta then
-        committedMeta.source = "none"
-        committedMeta.reason = nil
-        committedMeta.reasonCode = nil
-        committedMeta.rawACStatus = nil
-        committedMeta.strictState = true
-        committedMeta.rotationCatalogRole = nil
-        committedMeta.fallbackDropReason = nil
-        return
-    end
-    committedMeta.source = meta.source
-    committedMeta.reason = meta.reason
-    committedMeta.reasonCode = meta.reasonCode
-    committedMeta.rawACStatus = meta.rawACStatus
-    committedMeta.strictState = meta.strictState == true
-    committedMeta.rotationCatalogRole = meta.rotationCatalogRole
-    committedMeta.fallbackDropReason = meta.fallbackDropReason
 end
 
 local FILTERED_IDLE_DROP_REASONS = {
@@ -136,6 +117,47 @@ local function TruncateUTF8(value, maxCodepoints)
         return value:sub(1, truncationByteIndex - 1), true
     end
     return value, false
+end
+
+local function SnapshotCommittedMeta()
+    local meta = Engine.lastQueueMeta
+    if not meta then
+        committedMeta.source = "none"
+        committedMeta.reason = nil
+        committedMeta.reasonCode = nil
+        committedMeta.rawACStatus = nil
+        committedMeta.strictState = true
+        committedMeta.rotationCatalogRole = nil
+        committedMeta.fallbackDropReason = nil
+        committedMeta.phase = nil
+        committedMeta.aoeHintSpell = nil
+        return
+    end
+    committedMeta.source = meta.source
+    committedMeta.reason = meta.reason
+    committedMeta.reasonCode = meta.reasonCode
+    committedMeta.rawACStatus = meta.rawACStatus
+    committedMeta.strictState = meta.strictState == true
+    committedMeta.rotationCatalogRole = meta.rotationCatalogRole
+    committedMeta.fallbackDropReason = meta.fallbackDropReason
+
+    local phase = meta.phase
+    if IsSecretValue(phase) or type(phase) ~= "string" or phase == "" then
+        committedMeta.phase = nil
+    else
+        local truncatedPhase, wasTruncated = TruncateUTF8(phase, 24)
+        if truncatedPhase and wasTruncated then
+            truncatedPhase = truncatedPhase .. "…"
+        end
+        committedMeta.phase = truncatedPhase
+    end
+
+    local aoeHintSpell = meta.aoeHintSpell
+    if IsSecretValue(aoeHintSpell) or type(aoeHintSpell) ~= "number" then
+        committedMeta.aoeHintSpell = nil
+    else
+        committedMeta.aoeHintSpell = aoeHintSpell
+    end
 end
 
 local function BuildDecisionSourceLabel(meta)
@@ -904,9 +926,9 @@ end
 local function RenderAoeHint(spellID)
     local wasHidden = not aoeHintIcon or not aoeHintIcon:IsShown()
     local prevSpell = aoeHintDisplayed
-    aoeHintDisplayed = spellID
 
     if not spellID then
+        aoeHintDisplayed = nil
         if aoeHintIcon then
             if aoeHintIcon.glowAnim then aoeHintIcon.glowAnim:Stop() end
             if aoeHintIcon.glow then aoeHintIcon.glow:Hide() end
@@ -921,6 +943,7 @@ local function RenderAoeHint(spellID)
 
     local texture = C_Spell_GetSpellTexture and C_Spell_GetSpellTexture(spellID)
     if not texture then
+        aoeHintDisplayed = nil
         aoeHintIcon.glowAnim:Stop()
         aoeHintIcon.glow:Hide()
         aoeHintIcon:Hide()
@@ -929,6 +952,7 @@ local function RenderAoeHint(spellID)
 
     -- Only show when icon 1 is visible
     if not icons[1] or not icons[1]:IsShown() then
+        aoeHintDisplayed = nil
         aoeHintIcon.glowAnim:Stop()
         aoeHintIcon.glow:Hide()
         aoeHintIcon:Hide()
@@ -965,6 +989,7 @@ local function RenderAoeHint(spellID)
     end
 
     aoeHintIcon:Show()
+    aoeHintDisplayed = spellID
 
     -- Animate on first appear or spell change
     if wasHidden or prevSpell ~= spellID then
@@ -978,8 +1003,17 @@ local function RenderAoeHint(spellID)
 end
 
 local function UpdateAoeHintIcon(spellID)
-    if not TrueShot.GetOpt("showAoeHint") then
+    if not TrueShot.GetOpt("showAoeHint") or spellID == nil then
         RenderAoeHint(nil)
+        aoeHintPending = nil
+        aoeHintPendingTicks = 0
+        return
+    end
+
+    -- Reappear immediately after an explicit hide. Changes between two
+    -- displayed non-nil spells still use the normal two-tick stabilization.
+    if aoeHintDisplayed == nil then
+        RenderAoeHint(spellID)
         aoeHintPending = nil
         aoeHintPendingTicks = 0
         return
@@ -1781,8 +1815,6 @@ function Display:UpdateQueue(queue)
         HideIdleState()
     end
 
-    local meta = Engine.lastQueueMeta
-
     -- Why overlay: label the committed decision source for position 1
     local decisionLabel = TrueShot.GetOpt("showWhyOverlay")
         and BuildDecisionSourceLabel(committedMeta)
@@ -1799,15 +1831,21 @@ function Display:UpdateQueue(queue)
     end
 
     -- Phase indicator: show current rotation phase above overlay
-    if queue[1] ~= nil and TrueShot.GetOpt("showPhaseIndicator") and meta and meta.phase then
-        phaseText:SetText(meta.phase)
+    if TrueShot.GetOpt("showPhaseIndicator")
+        and queue[1] ~= nil
+        and committedMeta.strictState == false
+        and committedMeta.phase then
+        phaseText:SetText(committedMeta.phase)
         phaseText:Show()
     else
         phaseText:Hide()
     end
 
     -- AoE hint sub-icon
-    UpdateAoeHintIcon(meta and meta.aoeHintSpell)
+    local aoeHintSpell = (TrueShot.GetOpt("showAoeHint")
+        and committedMeta.strictState == false
+        and queue[1] ~= nil) and committedMeta.aoeHintSpell or nil
+    UpdateAoeHintIcon(aoeHintSpell)
 
     -- Override glow: pulse position 1 when TrueShot overrides AC
     if icons[1] and icons[1].border then
@@ -2007,6 +2045,9 @@ end
 
 function Display:Disable()
     HideIdleState()
+    aoeHintDisplayed = nil
+    aoeHintPending = nil
+    aoeHintPendingTicks = 0
     if not displayEnabled then return end
     displayEnabled = false
     self:ResetQueueStabilization()

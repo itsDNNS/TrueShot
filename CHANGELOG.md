@@ -6,6 +6,7 @@
 - **Honest idle presentation**. Empty committed queues can now show a muted placeholder slot with a short Assisted Combat or filtered-action status.
 
 ### Fixed
+- **Committed phase/AoE-hint context**. The phase label and AoE hint now follow the committed snapshot, preventing pending mismatches and orphaned or competing hints beside an action or idle state; secret and malformed values fail closed.
 - **Committed decision-source presentation**. The source label and override glow now follow the committed, visible primary slot instead of a newer engine snapshot.
 - **Strict Assisted Combat primary integrity**. Strict Compliance now preserves a readable, non-secret Blizzard current recommendation unchanged in Slot 1, including diagnostic recomputes with no active profile. A nil, secret, invalid, errored, or unavailable primary leaves the Strict queue empty instead of promoting a rotation-catalog entry.
 - **Bounded display stabilization**. Queue smoothing now commits the newest oscillating candidate after at most 0.30 seconds, while cast and lifecycle flushes remain immediate.
@@ -22,6 +23,7 @@
 - **Settings clarity**. Added a Strict Compliance checkbox and visibly disabled experimental-only display controls while Strict is active.
 
 ### Tests
+- Added committed phase/AoE-hint coverage for pending isolation, commit and reconfirm updates, lifecycle cleanup, strict and option gating, UTF-8 truncation, and secret or malformed values.
 - Added committed idle-state coverage for metadata isolation, filtered and waiting labels, queue stabilization, phase visibility, option fallback, and artifact cleanup.
 
 ## v0.27.0 - 2026-05-01
