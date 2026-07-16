@@ -444,10 +444,16 @@ local function CreateFeaturesPanel()
         keybindDesc, "showRangeIndicator"
     )
 
+    local idleCheck, idleDesc = CreateCheckbox(
+        sc, "Show idle placeholder",
+        "When no legal recommendation exists, show a muted empty slot and a short status line instead of a blank overlay.",
+        rangeDesc, "showIdleState"
+    )
+
     local whyCheck, whyDesc = CreateCheckbox(
         sc, "Experimental: show decision source",
         "Outside Strict Compliance, label the primary icon as Blizzard's Assisted Combat recommendation or an experimental override with a short rule reason.",
-        rangeDesc, "showWhyOverlay"
+        idleDesc, "showWhyOverlay"
     )
 
     local aoeHintCheck, aoeHintDesc = CreateCheckbox(

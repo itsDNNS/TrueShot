@@ -24,6 +24,7 @@ local DEFAULTS = {
     showOverrideIndicator = true,
     showKeybinds = true,
     showRangeIndicator = true,
+    showIdleState = true,
     combatOnly = false,
     enemyTargetOnly = false,
     overlayScale = 1.0,
