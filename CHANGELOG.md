@@ -3,11 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- **Committed decision-source presentation**. The source label and override glow now follow the committed, visible primary slot instead of a newer engine snapshot.
 - **Strict Assisted Combat primary integrity**. Strict Compliance now preserves a readable, non-secret Blizzard current recommendation unchanged in Slot 1, including diagnostic recomputes with no active profile. A nil, secret, invalid, errored, or unavailable primary leaves the Strict queue empty instead of promoting a rotation-catalog entry.
 - **Bounded display stabilization**. Queue smoothing now commits the newest oscillating candidate after at most 0.30 seconds, while cast and lifecycle flushes remain immediate.
 - **Secret-value handling**. Aura, charge, cooldown-number, and charge-text paths now fail closed before comparisons, formatting, or UI setters.
 
 ### Changed
+- **Decision-source labeling**. The label now distinguishes Blizzard's Assisted Combat recommendation from experimental overrides in user-readable, length-limited text.
 - **Single-action default**. The default icon count is now one instead of two; existing saved user settings continue to take precedence.
 - **Action-icon keybind**. Keybind text now appears only on the first, next-action icon.
 - **Action-icon cast feedback**. Cast-success flashes are now restricted to the first, next-action icon.

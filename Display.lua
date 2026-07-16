@@ -50,6 +50,105 @@ local function IsSecretValue(value)
     return issecretvalue and issecretvalue(value) or false
 end
 
+local function SnapshotCommittedMeta()
+    local meta = Engine.lastQueueMeta
+    if not meta then
+        committedMeta.source = "none"
+        committedMeta.reason = nil
+        committedMeta.reasonCode = nil
+        committedMeta.rawACStatus = nil
+        committedMeta.strictState = true
+        committedMeta.rotationCatalogRole = nil
+        return
+    end
+    committedMeta.source = meta.source
+    committedMeta.reason = meta.reason
+    committedMeta.reasonCode = meta.reasonCode
+    committedMeta.rawACStatus = meta.rawACStatus
+    committedMeta.strictState = meta.strictState == true
+    committedMeta.rotationCatalogRole = meta.rotationCatalogRole
+end
+
+local function TruncateUTF8(value, maxCodepoints)
+    local byteLength = #value
+    local byteIndex = 1
+    local codepointCount = 0
+    local truncationByteIndex
+
+    while byteIndex <= byteLength do
+        if codepointCount == maxCodepoints and not truncationByteIndex then
+            truncationByteIndex = byteIndex
+        end
+
+        local first = value:byte(byteIndex)
+        local width
+        if first <= 0x7F then
+            width = 1
+        elseif first >= 0xC2 and first <= 0xDF then
+            width = 2
+        elseif first >= 0xE0 and first <= 0xEF then
+            width = 3
+        elseif first >= 0xF0 and first <= 0xF4 then
+            width = 4
+        else
+            return nil
+        end
+
+        if byteIndex + width - 1 > byteLength then return nil end
+
+        local second = width > 1 and value:byte(byteIndex + 1)
+        if second and (second < 0x80 or second > 0xBF) then return nil end
+        if width == 3 then
+            if first == 0xE0 and second < 0xA0 then return nil end
+            if first == 0xED and second > 0x9F then return nil end
+        elseif width == 4 then
+            if first == 0xF0 and second < 0x90 then return nil end
+            if first == 0xF4 and second > 0x8F then return nil end
+        end
+
+        for offset = 2, width - 1 do
+            local continuation = value:byte(byteIndex + offset)
+            if continuation < 0x80 or continuation > 0xBF then return nil end
+        end
+
+        byteIndex = byteIndex + width
+        codepointCount = codepointCount + 1
+    end
+
+    if truncationByteIndex then
+        return value:sub(1, truncationByteIndex - 1), true
+    end
+    return value, false
+end
+
+local function BuildDecisionSourceLabel(meta)
+    if not meta or meta.strictState == true then return nil end
+    if meta.reasonCode == "AC_PRIMARY" then
+        return "Assisted Combat"
+    end
+    if meta.reasonCode ~= "EXPERIMENTAL_OVERRIDE" then return nil end
+
+    local reason = meta.reason
+    if IsSecretValue(reason) then
+        return "Experimental override"
+    end
+    if type(reason) ~= "string" then
+        return "Experimental override"
+    end
+    if reason == "" then
+        return "Experimental override"
+    end
+
+    local truncatedReason, wasTruncated = TruncateUTF8(reason, 24)
+    if not truncatedReason then
+        return "Experimental override"
+    end
+    if wasTruncated then
+        truncatedReason = truncatedReason .. "…"
+    end
+    return "Experimental: " .. truncatedReason
+end
+
 ------------------------------------------------------------------------
 -- Container frame
 ------------------------------------------------------------------------
@@ -1605,9 +1704,16 @@ function Display:UpdateQueue(queue)
 
     local meta = Engine.lastQueueMeta
 
-    -- Why overlay: show reason for position 1
-    if TrueShot.GetOpt("showWhyOverlay") and meta and meta.reason then
-        reasonText:SetText(meta.reason)
+    -- Why overlay: label the committed decision source for position 1
+    local decisionLabel = TrueShot.GetOpt("showWhyOverlay")
+        and BuildDecisionSourceLabel(committedMeta)
+    if decisionLabel then
+        reasonText:SetText(decisionLabel)
+        if committedMeta.reasonCode == "EXPERIMENTAL_OVERRIDE" then
+            reasonText:SetTextColor(1.0, 0.72, 0.2, 0.9)
+        else
+            reasonText:SetTextColor(0.75, 0.85, 1.0, 0.9)
+        end
         reasonText:Show()
     else
         reasonText:Hide()
@@ -1629,8 +1735,8 @@ function Display:UpdateQueue(queue)
         icons[1].border:SetVertexColor(1.0, 1.0, 1.0, 1.0)
     end
     if TrueShot.GetOpt("showOverrideIndicator") and icons[1] then
-        if meta and (meta.source == "pin" or meta.source == "prefer" or meta.source == "hybrid") then
-            ShowGlow(icons[1], meta.source)
+        if committedMeta.strictState == false and GLOW_COLORS[committedMeta.source] then
+            ShowGlow(icons[1], committedMeta.source)
         else
             HideGlow(icons[1])
         end
@@ -1641,16 +1747,9 @@ function Display:UpdateQueue(queue)
 end
 
 function Display:RenderQueueNow(queue, forcedByStaleDeadline)
+    SnapshotCommittedMeta()
     self:UpdateQueue(queue)
     StoreQueue(displayedQueueState, queue, TrueShot.GetOpt("iconCount"))
-    -- Snapshot committed metadata for analytics
-    local meta = Engine.lastQueueMeta
-    committedMeta.source = meta.source
-    committedMeta.reason = meta.reason
-    committedMeta.reasonCode = meta.reasonCode
-    committedMeta.rawACStatus = meta.rawACStatus
-    committedMeta.strictState = meta.strictState == true
-    committedMeta.rotationCatalogRole = meta.rotationCatalogRole
     staleDeadlineForcedLastCommit = forcedByStaleDeadline == true
     ClearPendingQueue()
     allowImmediateQueueUpdate = false
@@ -1682,6 +1781,17 @@ function Display:GetStabilizationSnapshot()
     }
 end
 
+function Display:GetDecisionSourceSnapshot()
+    local shown = reasonText:IsShown()
+    return {
+        shown = shown,
+        label = shown and reasonText:GetText() or nil,
+        source = committedMeta.source,
+        reasonCode = committedMeta.reasonCode,
+        strictState = committedMeta.strictState,
+    }
+end
+
 function Display:ConsumeQueueUpdate(queue, inCombat)
     local count = TrueShot.GetOpt("iconCount")
 
@@ -1699,6 +1809,7 @@ function Display:ConsumeQueueUpdate(queue, inCombat)
         -- Reappearing A freshly reconfirms the visible value, so discard pending B.
         ClearPendingQueue()
         -- Still run UpdateQueue for per-tick visuals (cooldown swipes, cast feedback, range tint)
+        SnapshotCommittedMeta()
         self:UpdateQueue(queue)
         return
     end
@@ -1741,11 +1852,11 @@ function Display:OnSpellCastSucceeded(spellID)
                 displayedQueue[#displayedQueue + 1] = icons[i].spellID
             end
         end
-        -- Use committedMeta (snapshotted at RenderQueueNow) not Engine.lastQueueMeta
+        -- Use committedMeta (snapshotted at queue commit/reconfirm) not Engine.lastQueueMeta
         TrueShot.CombatTrace:RecordCast(
             spellID,
             displayedSpell,
-            committedMeta.source or "ac",
+            committedMeta.source or "none",
             committedMeta.reason,
             displayedQueue,
             committedMeta
