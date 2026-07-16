@@ -44,6 +44,7 @@ local committedMeta = {
     rawACStatus = "unavailable",
     strictState = true,
     rotationCatalogRole = "context_only",
+    fallbackDropReason = nil,
 }
 
 local function IsSecretValue(value)
@@ -59,6 +60,7 @@ local function SnapshotCommittedMeta()
         committedMeta.rawACStatus = nil
         committedMeta.strictState = true
         committedMeta.rotationCatalogRole = nil
+        committedMeta.fallbackDropReason = nil
         return
     end
     committedMeta.source = meta.source
@@ -67,6 +69,21 @@ local function SnapshotCommittedMeta()
     committedMeta.rawACStatus = meta.rawACStatus
     committedMeta.strictState = meta.strictState == true
     committedMeta.rotationCatalogRole = meta.rotationCatalogRole
+    committedMeta.fallbackDropReason = meta.fallbackDropReason
+end
+
+local FILTERED_IDLE_DROP_REASONS = {
+    raw_ac_blacklisted = true,
+    raw_ac_locally_uncastable = true,
+}
+
+local function BuildIdleStateLabel(meta)
+    if meta.strictState == false
+        and type(meta.fallbackDropReason) == "string"
+        and FILTERED_IDLE_DROP_REASONS[meta.fallbackDropReason] then
+        return "No action (filtered)"
+    end
+    return "Waiting for Assisted Combat"
 end
 
 local function TruncateUTF8(value, maxCodepoints)
@@ -829,6 +846,61 @@ local function CreateAoeHintIcon()
     return frame
 end
 
+------------------------------------------------------------------------
+-- Idle state (anchored at icon 1 with a separate status line)
+------------------------------------------------------------------------
+
+local idleFrame
+local idleText
+
+local function LayoutIdleState()
+    if not idleFrame or not icons[1] then return end
+
+    local size = TrueShot.GetOpt("iconSize") or 40
+    local firstScale = TrueShot.GetOpt("firstIconScale") or 1.3
+    idleFrame:SetSize(size, size)
+    idleFrame:SetScale(firstScale)
+    idleFrame:ClearAllPoints()
+    idleFrame:SetPoint("CENTER", icons[1], "CENTER", 0, 0)
+
+    idleText:ClearAllPoints()
+    idleText:SetPoint("TOP", container, "BOTTOM", 0, -2)
+end
+
+local function CreateIdleState()
+    local frame = CreateFrame("Frame", "TrueShotIdleFrame", content)
+
+    frame.slotBackground = frame:CreateTexture(nil, "BACKGROUND")
+    frame.slotBackground:SetAllPoints()
+    frame.slotBackground:SetAtlas("UI-HUD-ActionBar-IconFrame-Background")
+
+    frame.border = frame:CreateTexture(nil, "OVERLAY")
+    frame.border:SetAllPoints()
+    frame.border:SetAtlas("UI-HUD-ActionBar-IconFrame")
+
+    idleText = container:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    idleText:SetJustifyH("CENTER")
+    idleText:SetWordWrap(false)
+    idleText:SetTextColor(0.6, 0.6, 0.6, 0.9)
+    idleText:Hide()
+
+    idleFrame = frame
+    LayoutIdleState()
+    idleFrame:Hide()
+end
+
+local function HideIdleState()
+    if idleFrame then idleFrame:Hide() end
+    if idleText then idleText:Hide() end
+end
+
+local function ShowIdleState()
+    if not idleFrame then CreateIdleState() end
+    idleText:SetText(BuildIdleStateLabel(committedMeta))
+    idleFrame:Show()
+    idleText:Show()
+end
+
 local function RenderAoeHint(spellID)
     local wasHidden = not aoeHintIcon or not aoeHintIcon:IsShown()
     local prevSpell = aoeHintDisplayed
@@ -1211,6 +1283,7 @@ function Display:UpdateContainerSize()
     end
 
     LayoutIcons()
+    LayoutIdleState()
 end
 
 function Display:GetPositionOffsets()
@@ -1702,6 +1775,12 @@ function Display:UpdateQueue(queue)
         icon:Hide()
     end
 
+    if queue[1] == nil and TrueShot.GetOpt("showIdleState") then
+        ShowIdleState()
+    else
+        HideIdleState()
+    end
+
     local meta = Engine.lastQueueMeta
 
     -- Why overlay: label the committed decision source for position 1
@@ -1720,7 +1799,7 @@ function Display:UpdateQueue(queue)
     end
 
     -- Phase indicator: show current rotation phase above overlay
-    if TrueShot.GetOpt("showPhaseIndicator") and meta and meta.phase then
+    if queue[1] ~= nil and TrueShot.GetOpt("showPhaseIndicator") and meta and meta.phase then
         phaseText:SetText(meta.phase)
         phaseText:Show()
     else
@@ -1927,6 +2006,7 @@ function Display:Enable()
 end
 
 function Display:Disable()
+    HideIdleState()
     if not displayEnabled then return end
     displayEnabled = false
     self:ResetQueueStabilization()
